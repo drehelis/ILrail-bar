@@ -11,7 +11,7 @@ xcodebuild -project ${APP_NAME}.xcodeproj -configuration Release
 
 ln -s /Applications "${DMG_TEMP_DIR}/Applications"
 
-cp -R ${BASE_DIR}/build/Release/${APP_NAME}.app ${DMG_TEMP_DIR}
+cp -R ${BASE_DIR}/../build/Release/${APP_NAME}.app ${DMG_TEMP_DIR}
 
 cat > ${DMG_TEMP_DIR}/README.txt << EOL
 # How to Install ILrail-bar
@@ -32,7 +32,7 @@ echo "Self-signing the app..."
 codesign --verbose=4 --force --deep --sign - ${DMG_TEMP_DIR}/${APP_NAME}.app
 
 # Create the DMG
-hdiutil create -volname "${APP_NAME}" -srcfolder ${DMG_TEMP_DIR} -ov -format UDZO ${BASE_DIR}/${APP_NAME}.dmg
+hdiutil create -volname "${APP_NAME}" -srcfolder ${DMG_TEMP_DIR} -ov -format UDZO ${BASE_DIR}/../${APP_NAME}.dmg
 
 echo "Cleaning up temp-dir..."
 rm -rf ${DMG_TEMP_DIR}
