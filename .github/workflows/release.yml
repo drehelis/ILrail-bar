@@ -17,19 +17,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          LATEST_TAG=$(gh api https://api.github.com/repos/drehelis/sammy_ofer/releases/latest | jq -r '.tag_name // empty')
+          LATEST_TAG=$(gh api https://api.github.com/repos/drehelis/ILrail-bar/releases/latest | jq -r '.tag_name // empty')
           VERSION=${LATEST_TAG#v}
-          [[ -z "$VERSION" ]] && VERSION="1.0.0"
+          [[ -z "$VERSION" ]] && VERSION=$(utils/increment_version.sh -M 0.0.0)
 
           NEW_TAG="v$(utils/increment_version.sh $VERSION)"
 
           echo "Latest tag: $LATEST_TAG"
           echo "New tag: $NEW_TAG"
 
-      # - name: "Build & Package"
-      #   run: |
-      #     xcode-select -print-path
-      #     sudo xcode-select -switch /Applications/Xcode_16.2.app
-      #     xcode-select -print-path
+      - name: "Build & Package"
+        run: |
+          xcode-select -print-path
+          sudo xcode-select -switch /Applications/Xcode_16.2.app
+          xcode-select -print-path
 
-      #     ./utils/package_dmg.sh
+          ./utils/package_dmg.sh
+
+      - name: "Release"
+        run: |
+          gh release create $NEW_TAG ./ILrail-bar.dmg
