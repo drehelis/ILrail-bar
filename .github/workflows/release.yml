@@ -12,10 +12,24 @@ jobs:
       - name: "Checkout"
         uses: actions/checkout@v4
 
-      - name: "Build & Package"
+      - name: "Tagging"
+        id: tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          xcode-select -print-path
-          sudo xcode-select -switch /Applications/Xcode_16.2.app	
-          xcode-select -print-path
+          LATEST_TAG=$(gh api https://api.github.com/repos/drehelis/sammy_ofer/releases/latest | jq -r '.tag_name // empty')
+          VERSION=${LATEST_TAG#v}
+          [[ -z "$VERSION" ]] && VERSION="1.0.0"
 
-          ./package_dmg.sh
+          NEW_TAG="v$(utils/increment_version.sh $VERSION)"
+
+          echo "Latest tag: $LATEST_TAG"
+          echo "New tag: $NEW_TAG"
+
+      # - name: "Build & Package"
+      #   run: |
+      #     xcode-select -print-path
+      #     sudo xcode-select -switch /Applications/Xcode_16.2.app
+      #     xcode-select -print-path
+
+      #     ./utils/package_dmg.sh
