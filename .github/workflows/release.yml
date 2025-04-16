@@ -37,4 +37,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          git tag $NEW_TAG
+          git push origin $NEW_TAG
+
           gh release create $NEW_TAG ./ILrail-bar.dmg
