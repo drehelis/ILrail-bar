@@ -15,7 +15,7 @@ jobs:
       - name: "Build & Package"
         run: |
           xcode-select -print-path
-          xcode-select -switch /Applications/Xcode_16.2.app	
+          sudo xcode-select -switch /Applications/Xcode_16.2.app	
           xcode-select -print-path
 
           ./package_dmg.sh
