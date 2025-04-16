@@ -34,5 +34,7 @@ jobs:
           ./utils/package_dmg.sh
 
       - name: "Release"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create $NEW_TAG ./ILrail-bar.dmg
