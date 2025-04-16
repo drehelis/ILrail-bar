@@ -42,4 +42,4 @@ jobs:
           # git tag $NEW_TAG
           # git push origin $NEW_TAG
 
-          gh release create $NEW_TAG ./ILrail-bar.dmg
+          gh release create $NEW_TAG --notes "111" ./ILrail-bar.dmg
