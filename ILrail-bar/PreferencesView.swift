@@ -8,6 +8,7 @@ struct PreferencesView: View {
     @State private var launchAtLogin: Bool
     @State private var redAlertMinutes: Int
     @State private var blueAlertMinutes: Int
+    @State private var refreshInterval: Int
     @State private var isPresented: Bool = true
     @State private var stations: [Station] = Station.allStations
     @State private var isLoading: Bool = false
@@ -23,6 +24,7 @@ struct PreferencesView: View {
         _launchAtLogin = State(initialValue: preferences.launchAtLogin)
         _redAlertMinutes = State(initialValue: preferences.redAlertMinutes)
         _blueAlertMinutes = State(initialValue: preferences.blueAlertMinutes)
+        _refreshInterval = State(initialValue: preferences.refreshInterval)
         self.window = window
     }
     
@@ -46,7 +48,26 @@ struct PreferencesView: View {
                     }
                     
                     HStack(alignment: .center) {
-                        Text("From Station")
+                        Text("Refresh Interval")
+                            .frame(width: 150, alignment: .leading)
+                        
+                        Picker("", selection: $refreshInterval) {
+                            Text("10 seconds").tag(10)
+                            Text("30 seconds").tag(30)
+                            Text("1 minute").tag(60)
+                            Text("2 minutes").tag(120)
+                            Text("5 minutes").tag(300)
+                            Text("10 minutes").tag(600)
+                            Text("15 minutes").tag(900)
+                            Text("30 minutes").tag(1800)
+                            Text("1 hour").tag(3600)
+                        }
+                        .pickerStyle(PopUpButtonPickerStyle())
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    
+                    HStack(alignment: .center) {
+                        Text("Departure Station")
                             .frame(width: 150, alignment: .leading)
                         
                         Picker("", selection: $selectedFromStation) {
@@ -59,7 +80,7 @@ struct PreferencesView: View {
                     }
                     
                     HStack(alignment: .center) {
-                        Text("To Station")
+                        Text("Arrival Station")
                             .frame(width: 150, alignment: .leading)
                         
                         Picker("", selection: $selectedToStation) {
@@ -149,14 +170,15 @@ struct PreferencesView: View {
                         upcomingItemsCount: upcomingItemsCount,
                         launchAtLogin: launchAtLogin,
                         redAlertMinutes: redAlertMinutes,
-                        blueAlertMinutes: blueAlertMinutes
+                        blueAlertMinutes: blueAlertMinutes,
+                        refreshInterval: refreshInterval
                     )
                     
                     // Configure launch at login
                     updateLaunchAtLogin(launchAtLogin)
                     
                     // Notify the app to refresh train schedules with new preferences
-                    NotificationCenter.default.post(name: .preferencesChanged, object: nil)
+                    NotificationCenter.default.post(name: .reloadPreferencesChanged, object: nil)
                     
                     closeWindow()
                 }
@@ -167,7 +189,7 @@ struct PreferencesView: View {
             .frame(maxWidth: .infinity)  // This ensures the HStack takes the full width
             .padding(.bottom, 20)
         }
-        .frame(width: 400, height: 300) // Adjusted height since we removed the title
+        .frame(width: 400, height: 350) // Adjusted height since we removed the title
         .onAppear {
             loadStations()
         }

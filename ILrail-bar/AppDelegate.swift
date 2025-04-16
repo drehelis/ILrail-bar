@@ -10,9 +10,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
     private var aboutWindow: NSWindow?
     
     // Constants
-    private let appRefreshInterval: TimeInterval = 300 // 5 minutes
     private let noTrainFoundMessage = "No trains found for route" 
-    private let aboutAppVersion = "ILrail-bar v0.1" 
+    private let aboutAppVersion = "ILrail-bar" 
 
         
     @objc func copyTrainInfoToClipboard(_ sender: NSMenuItem) {
@@ -130,9 +129,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         setupMenuBar()
         fetchTrainSchedule()
         
-        // Set up a timer to refresh the train schedule every 5 minutes
         trainScheduleTimer = Timer.scheduledTimer(
-            timeInterval: appRefreshInterval,
+            timeInterval: TimeInterval(PreferencesManager.shared.preferences.refreshInterval),
             target: self,
             selector: #selector(timerRefresh),
             userInfo: nil,
@@ -142,13 +140,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         // Listen for preferences changes
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(preferencesChanged),
-            name: .preferencesChanged,
+            selector: #selector(reloadPreferencesChanged),
+            name: .reloadPreferencesChanged,
             object: nil
         )
     }
     
     @objc private func timerRefresh() {
+        let interval = PreferencesManager.shared.preferences.refreshInterval
+        logInfo("Performing scheduled refresh (interval: \(interval) seconds)")
         fetchTrainSchedule(showLoading: false)
     }
     
@@ -249,9 +249,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         }
     }
     
-    @objc private func preferencesChanged() {
-        // Reload train schedule when preferences change
+    @objc private func reloadPreferencesChanged() {
         fetchTrainSchedule()
+        
+        // Update the refresh timer with new interval
+        if let existingTimer = trainScheduleTimer {
+            existingTimer.invalidate()
+        }
+        
+        // Create new timer with updated interval from preferences
+        trainScheduleTimer = Timer.scheduledTimer(
+            timeInterval: TimeInterval(PreferencesManager.shared.preferences.refreshInterval),
+            target: self,
+            selector: #selector(timerRefresh),
+            userInfo: nil,
+            repeats: true
+        )
     }
     
     @objc private func fetchTrainSchedule(showLoading: Bool = true) {
@@ -285,6 +298,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
     }
     
     @objc private func manualRefresh() {
+        logInfo("Refresh request by user")
         fetchTrainSchedule(showLoading: true)
     }
     

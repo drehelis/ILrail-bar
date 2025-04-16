@@ -61,7 +61,7 @@ struct AboutView: View {
             
             HStack(spacing: 30) {
                 Button(action: {
-                    if let url = URL(string: "https://github.com/drehelis") {
+                    if let url = URL(string: "https://github.com/drehelis/ILrail-bar") {
                         NSWorkspace.shared.open(url)
                     }
                 }) {

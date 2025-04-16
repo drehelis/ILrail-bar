@@ -7,6 +7,7 @@ struct StationPreferences: Codable {
     var launchAtLogin: Bool
     var redAlertMinutes: Int // Time in minutes for red alert (urgent)
     var blueAlertMinutes: Int // Time in minutes for blue alert (approaching)
+    var refreshInterval: Int // Time in seconds for refresh interval
     
     static let defaultPreferences = StationPreferences(
         fromStation: "3700",
@@ -14,7 +15,8 @@ struct StationPreferences: Codable {
         upcomingItemsCount: 3,
         launchAtLogin: false,
         redAlertMinutes: 15,
-        blueAlertMinutes: 30
+        blueAlertMinutes: 30,
+        refreshInterval: 300
     )
 }
 
@@ -42,14 +44,16 @@ class PreferencesManager {
     }
     
     func savePreferences(fromStation: String, toStation: String, upcomingItemsCount: Int = 3, 
-                         launchAtLogin: Bool = false, redAlertMinutes: Int = 15, blueAlertMinutes: Int = 30) {
+                         launchAtLogin: Bool = false, redAlertMinutes: Int = 15, blueAlertMinutes: Int = 30,
+                         refreshInterval: Int = 300) {
         preferences = StationPreferences(
             fromStation: fromStation, 
             toStation: toStation, 
             upcomingItemsCount: upcomingItemsCount, 
             launchAtLogin: launchAtLogin,
             redAlertMinutes: redAlertMinutes,
-            blueAlertMinutes: blueAlertMinutes
+            blueAlertMinutes: blueAlertMinutes,
+            refreshInterval: refreshInterval
         )
     }
 }
@@ -152,6 +156,6 @@ struct Station: Identifiable, Hashable {
 
 // Notification for station data loaded
 extension Notification.Name {
-    static let preferencesChanged = Notification.Name("com.ilrailbar.preferencesChanged")
+    static let reloadPreferencesChanged = Notification.Name("com.ilrailbar.reloadPreferencesChanged")
     static let stationsLoaded = Notification.Name("com.ilrailbar.stationsLoaded")
 }
