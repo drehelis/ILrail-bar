@@ -19,6 +19,7 @@ jobs:
         run: |
           LATEST_TAG=$(gh api https://api.github.com/repos/drehelis/ILrail-bar/releases/latest | jq -r '.tag_name // empty')
           VERSION=${LATEST_TAG#v}
+
           [[ -z "$VERSION" ]] && VERSION=$(utils/increment_version.sh -M 0.0.0)
 
           NEW_TAG="v$(utils/increment_version.sh $VERSION)"
