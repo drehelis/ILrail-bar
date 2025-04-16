@@ -14,5 +14,5 @@ jobs:
 
       - name: "Build & Package"
         run: |
-          which xcodebuild
+          ls -la /usr/bin/xcodebuild*
           # ./package_dmg.sh
