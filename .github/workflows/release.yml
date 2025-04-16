@@ -1,0 +1,17 @@
+on:
+  push:
+
+jobs:
+  release:
+    runs-on: macos-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+
+      - name: "Build & Package"
+        run: |
+          ./package_dmg.sh
