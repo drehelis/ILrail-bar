@@ -5,8 +5,8 @@ class NetworkManager {
     
     private let apiKey = "4b0d355121fe4e0bb3d86e902efe9f20"
     private let apiBaseURL = "https://israelrail.azurefd.net"    
-    private var timetableBaseURL: String { return "\(apiBaseURL)/rjpa-prod/api/v1/timetable/searchTrainLuzForDateTime" }
-    private var stationsBaseURL: String { return "\(apiBaseURL)/common/api/v1/stations" }
+    private var timetableBaseURL: String { return apiBaseURL + "/rjpa-prod/api/v1/timetable/searchTrainLuzForDateTime" }
+    private var stationsBaseURL: String { return apiBaseURL + "/common/api/v1/stations" }
     private let madeUpUserAgent = "ILrail-bar/1.0 macOS"
     
     private let languageId = "Hebrew"
@@ -20,7 +20,6 @@ class NetworkManager {
         case serverError(String)
     }
     
-    // Fetch stations from the Israel Rail API
     func fetchStations(completion: @escaping (Result<[RemoteStation], NetworkError>) -> Void) {
         guard var components = URLComponents(string: stationsBaseURL) else {
             completion(.failure(.invalidURL))
@@ -88,7 +87,6 @@ class NetworkManager {
     }
     
     func fetchTrainSchedule(completion: @escaping (Result<[TrainSchedule], Error>) -> Void) {
-        // Get current date and time
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let currentDate = dateFormatter.string(from: Date())
@@ -97,12 +95,10 @@ class NetworkManager {
         timeFormatter.dateFormat = "HH:mm"
         let currentTime = timeFormatter.string(from: Date())
         
-        // Get station preferences
         let preferences = PreferencesManager.shared.preferences
         
         logInfo("Fetching trains from \(preferences.fromStation) to \(preferences.toStation)")
         
-        // Construct URL with query parameters
         var components = URLComponents(string: timetableBaseURL)
         components?.queryItems = [
             URLQueryItem(name: "fromStation", value: preferences.fromStation),
@@ -163,7 +159,6 @@ class NetworkManager {
 
                 let now = Date()
 
-                // Extract all trains from all travels
                 var trainSchedules: [TrainSchedule] = []
                 
                 for travel in response.result.travels {
@@ -174,10 +169,7 @@ class NetworkManager {
                     // For multi-train journeys, we only need to add the first train segment
                     // with information about the entire journey
                     if let firstTrainData = travel.trains.first {
-                        // Convert the train number to string properly
                         let trainNumberString = String(describing: firstTrainData.trainNumber)
-                        
-                        // Collect all train numbers from this travel
                         let allTrainNumbers = travel.trains.map { String(describing: $0.trainNumber) }
                         
                         // We want to show the first train of each travel, with the overall journey time

@@ -9,10 +9,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
     private var preferencesWindow: NSWindow?
     private var aboutWindow: NSWindow?
     
-    // Constants
-    private let noTrainFoundMessage = "No trains found for route" 
-    private let aboutAppVersion = "ILrail-bar" 
-
+    private enum Constants {
+        static let aboutAppVersion = "ILrail-bar"
+        static let menuBarErrorText = " Error"
+        static let menuBarLoadingText = " Loading..."
+        static let menuBarNoResultsText = " No results"
+        static let noTrainFoundMessage = "No trains found for route"
+        
+        // Menu section titles
+        static let nextTrainTitle = "Next:"
+        static let upcomingTrainsTitle = "Upcoming:"
+    }
         
     @objc func copyTrainInfoToClipboard(_ sender: NSMenuItem) {
         var textToCopy = ""
@@ -180,7 +187,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
             
             // Add loading message with a styled appearance
             button.attributedTitle = NSAttributedString(
-                string: " Loading...",
+                string: Constants.menuBarLoadingText,
                 attributes: [
                     NSAttributedString.Key.foregroundColor: NSColor.secondaryLabelColor,
                     NSAttributedString.Key.font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
@@ -288,7 +295,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
                         // Pass all train schedules to the update method
                         self.updateMenuBarWithTrains(trainSchedules)
                     } else {
-                        self.updateMenuBarWithError(self.noTrainFoundMessage)
+                        self.updateMenuBarWithError(Constants.noTrainFoundMessage)
                     }
                 case .failure(let error):
                     self.updateMenuBarWithError(error.localizedDescription)
@@ -378,7 +385,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         )
         firstTrainInfoItem.attributedTitle = firstTrainAttrString
         firstTrainInfoItem.target = self
-        trainItems.append(NSMenuItem(title: "Next:", action: nil, keyEquivalent: ""))
+        trainItems.append(NSMenuItem(title: Constants.nextTrainTitle, action: nil, keyEquivalent: ""))
         trainItems.append(firstTrainInfoItem)
         
         // Add up to the configured number of additional trains
@@ -388,7 +395,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         
         if trainSchedules.count > 1 {
             trainItems.append(NSMenuItem.separator())
-            trainItems.append(NSMenuItem(title: "Upcoming:", action: nil, keyEquivalent: ""))
+            trainItems.append(NSMenuItem(title: Constants.upcomingTrainsTitle, action: nil, keyEquivalent: ""))
             
             for i in 1..<maxTrainsToShow {
                 let train = trainSchedules[i]
@@ -472,8 +479,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         
         // Update status bar with error indicator
         if let button = statusItem.button {
-            let menubarText = message == noTrainFoundMessage ? " No results" : " Error"            
-            let textColor = message == noTrainFoundMessage ? NSColor.labelColor : NSColor.systemRed
+            let menubarText = message == Constants.noTrainFoundMessage ? Constants.menuBarNoResultsText : Constants.menuBarErrorText
+            let textColor = message == Constants.noTrainFoundMessage ? NSColor.labelColor : NSColor.systemRed
             
             button.attributedTitle = NSAttributedString(
                 string: menubarText,
@@ -487,7 +494,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         let hostingView = NSHostingView(rootView: aboutView)
         createAndShowWindow(
             size: NSSize(width: 350, height: 350),
-            title: aboutAppVersion,
+            title: Constants.aboutAppVersion,
             styleMask: [.titled, .closable],
             center: true,
             view: hostingView,
