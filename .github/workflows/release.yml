@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - ".gitignore"
+      - "README.md"
+      - "LICENSE"
+      - "CHANGELOG.md"
+      - ".github/**"
+      - "screenshots/**"
 
 jobs:
   release:

@@ -28,7 +28,7 @@ A sleek and efficient macOS menu bar app for tracking Israel Railways train sche
 ### Option 1: Direct Download
 
 1. Download the latest release from the [Releases](https://github.com/drehelis/ILrail-bar/releases) page
-2. (Read README.txt!) Open the DMG file and drag ILrail-bar to your Applications folder
+2. Open the DMG file **(Read README.txt!)** and drag ILrail-bar to your Applications folder
 3. Launch the app from your Applications folder
 
 ### Option 2: Build from Source
@@ -44,14 +44,14 @@ Alternatively, you can build from the command line:
    ```bash
    cd ILrail-bar
    xcodebuild -project ILrail-bar.xcodeproj -configuration Debug
-   open build/Release/ILrail-bar.app
+   open build/Debug/ILrail-bar.app
    ```
-To pack DMG file, use `./package_dmg.sh`
+To pack DMG file, use `./utils/package_dmg.sh`
 
 ## Usage
 
-1. **Initial Setup**: When you first launch the app, it will appear in your menu bar with a train icons
-2. **Select Stations**: Click the icon and select "Preferences..." to choose your departure and destination stations
+1. **Initial Setup**: When you first launch the app, it will appear in your menu bar with a train icon
+2. **Select Stations**: Click the icon and select "Preferences..." to choose your departure and arrival stations
 
 
 ## Privacy
