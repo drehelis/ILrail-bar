@@ -20,9 +20,13 @@ Since this app isn't signed with an Apple Developer certificate, macOS may show 
 
 To open the app:
 1. Copy the ILrail-bar app to your Applications folder
-2. Right-click (or Control-click) on the app icon
-3. Select "Open" from the context menu
-4. Click "Open" in the dialog box that appears
+2. Click on the app icon
+3. Greet the security warning "Apple couldn not verify 'ILrail-bar' is free from malware..."
+4. Go to System Settings > Privacy & Security
+5. Scroll down to the "Security" section
+6. Look for a message about "ILrail-bar was blocked". Click "Allow Anyway"
+
+Then try opening the app again
 
 You only need to do this once. After the first launch, you can open the app normally.
 

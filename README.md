@@ -1,8 +1,9 @@
 # ILrail-bar
 
-![macOS](https://img.shields.io/badge/macOS-15.0+-brightgreen.svg)
-![Swift](https://img.shields.io/badge/Swift-5.0-orange.svg)
-![License](https://img.shields.io/badge/License-MIT-blue.svg)
+![macOS](https://img.shields.io/badge/macOS-15.0+-brightgreen.svg?style=for-the-badge)
+![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg?style=for-the-badge)
+![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)
+[!["Buy Me A Coffee"](https://img.shields.io/badge/-buy_me_a%C2%A0coffee-gray?logo=buy-me-a-coffee&style=for-the-badge)](https://www.buymeacoffee.com/drehelis)
 
 <p align="center">
   <img src="ILrail-bar/Assets.xcassets/AppIcon.appiconset/128.png" alt="ILrail-bar Logo">
@@ -20,7 +21,7 @@ A sleek and efficient macOS menu bar app for tracking Israel Railways train sche
 ## Screenshots
 
 <p align="center">
-  <img src="screenshots/menu-bar-pref.png" width="400" alt="Menu Bar Interface">
+  <img src="screenshots/menu-bar-pref.png" width="600" alt="Menu Bar Interface">
 </p>
 
 ## Installation
@@ -56,7 +57,7 @@ To pack DMG file, use `./utils/package_dmg.sh`
 
 ## Privacy
 
-ILrail-bar uses the official Israel Railways API but does not collect or store any personal data. All requests are made directly from your device to the official Israel Railways endpoint.
+ILrail-bar uses the official Israel Railways API and does not collect or store any personal data. All requests are made directly from your device to the official Israel Railways endpoint.
 
 ## Feedback and Contributions
 
