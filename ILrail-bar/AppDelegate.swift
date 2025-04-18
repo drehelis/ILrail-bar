@@ -15,6 +15,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         static let menuBarLoadingText = " Loading..."
         static let menuBarNoResultsText = " No results"
         static let noTrainFoundMessage = "No trains found for route"
+        static let toolTipStationsText = "Click to reverse direction"
+        static let toolTipCopyToClipboard = "Click to copy train info to clipboard"
         
         // Menu section titles
         static let nextTrainTitle = "Next:"
@@ -291,7 +293,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
             DispatchQueue.main.async {
                 switch result {
                 case .success(let trainSchedules):
-                    if !trainSchedules.isEmpty {
+                    if (!trainSchedules.isEmpty) {
                         // Pass all train schedules to the update method
                         self.updateMenuBarWithTrains(trainSchedules)
                     } else {
@@ -333,8 +335,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         let fromStationName = fromStation?.name ?? preferences.fromStation
         let toStationName = toStation?.name ?? preferences.toStation
         
-        // Add station names at the top
-        let stationsItem = NSMenuItem(title: "\(fromStationName)\t→\t\(toStationName)", action: nil, keyEquivalent: "")
+        let stationTitle = "\(fromStationName)\t→\t\(toStationName)"        
+        let stationsItem = NSMenuItem(title: stationTitle, action: #selector(reverseTrainDirection(_:)), keyEquivalent: "")
+        stationsItem.target = self
+        stationsItem.toolTip = Constants.toolTipStationsText
         
         // Create common items array with the separator and website link
         var commonItems: [NSMenuItem] = []
@@ -385,6 +389,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         )
         firstTrainInfoItem.attributedTitle = firstTrainAttrString
         firstTrainInfoItem.target = self
+        firstTrainInfoItem.toolTip = Constants.toolTipCopyToClipboard
+
         trainItems.append(NSMenuItem(title: Constants.nextTrainTitle, action: nil, keyEquivalent: ""))
         trainItems.append(firstTrainInfoItem)
         
@@ -424,6 +430,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
                 )
                 trainInfoItem.attributedTitle = trainAttrString
                 trainInfoItem.target = self
+                trainInfoItem.toolTip = Constants.toolTipCopyToClipboard
                 trainItems.append(trainInfoItem)
             }
         }
@@ -560,5 +567,27 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
             return true
         }
         return true
+    }
+
+    @objc private func reverseTrainDirection(_ sender: NSMenuItem) {
+        let preferences = PreferencesManager.shared.preferences
+        
+        let oldFromStation = preferences.fromStation
+        let oldToStation = preferences.toStation
+        
+        logInfo("Reversing train direction: \(oldFromStation) ↔ \(oldToStation)")
+        
+        PreferencesManager.shared.savePreferences(
+            fromStation: oldToStation,
+            toStation: oldFromStation
+            upcomingItemsCount: preferences.upcomingItemsCount,
+            launchAtLogin: preferences.launchAtLogin,
+            redAlertMinutes: preferences.redAlertMinutes,
+            blueAlertMinutes: preferences.blueAlertMinutes,
+            refreshInterval: preferences.refreshInterval
+        )
+        
+        // Trigger a refresh to update the train schedule
+        NotificationCenter.default.post(name: .reloadPreferencesChanged, object: nil)
     }
 }

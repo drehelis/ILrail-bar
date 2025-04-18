@@ -19,13 +19,6 @@ struct AboutView: View {
             ) {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 5) {
-                        Text("Click - copies row to clipboard")
-                    }
-                    
-                    Divider()
-                        .padding(.vertical, 4)
-                    
-                    HStack(spacing: 5) {
                         Text("(0)")
                             .fontWeight(.medium)
                         Text("- No train changes required")
@@ -85,6 +78,6 @@ struct AboutView: View {
             Spacer()
         }
         .padding()
-        .frame(width: 350, height: 400)
+        .frame(width: 350, height: 350)
     }
 }
