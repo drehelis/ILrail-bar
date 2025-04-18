@@ -279,7 +279,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
     @objc private func fetchTrainSchedule(showLoading: Bool = true) {
         if showLoading, let button = statusItem.button {
             button.attributedTitle = NSAttributedString(
-                string: " Loading...",
+                string: Constants.menuBarLoadingText,
                 attributes: [
                     NSAttributedString.Key.foregroundColor: NSColor.secondaryLabelColor,
                     NSAttributedString.Key.font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
@@ -335,10 +335,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         let fromStationName = fromStation?.name ?? preferences.fromStation
         let toStationName = toStation?.name ?? preferences.toStation
         
-        let stationTitle = "\(fromStationName)\t→\t\(toStationName)"        
-        let stationsItem = NSMenuItem(title: stationTitle, action: #selector(reverseTrainDirection(_:)), keyEquivalent: "")
-        stationsItem.target = self
-        stationsItem.toolTip = Constants.toolTipStationsText
+        let stationTitle = "\(fromStationName)\t→\t\(toStationName)"
+        
+        let customView = StationMenuItemView(
+            title: stationTitle,
+            target: self,
+            action: #selector(reverseTrainDirection(_:))
+        )
+        customView.toolTip = Constants.toolTipStationsText
+        
+        let stationsItem = NSMenuItem()
+        stationsItem.view = customView
         
         // Create common items array with the separator and website link
         var commonItems: [NSMenuItem] = []
@@ -579,7 +586,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         
         PreferencesManager.shared.savePreferences(
             fromStation: oldToStation,
-            toStation: oldFromStation
+            toStation: oldFromStation,
             upcomingItemsCount: preferences.upcomingItemsCount,
             launchAtLogin: preferences.launchAtLogin,
             redAlertMinutes: preferences.redAlertMinutes,
@@ -589,5 +596,131 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         
         // Trigger a refresh to update the train schedule
         NotificationCenter.default.post(name: .reloadPreferencesChanged, object: nil)
+    }
+}
+
+class StationMenuItemView: NSView {
+    private let title: String
+    private weak var target: AnyObject?
+    private let action: Selector
+    private var isHovered: Bool = false
+    private var trackingArea: NSTrackingArea?
+    
+    private static let standardHeight: CGFloat = 22
+    private static let horizontalPadding: CGFloat = 14
+    private static let standardMenuFont = NSFont.menuFont(ofSize: 0)
+    
+    init(title: String, target: AnyObject?, action: Selector) {
+        self.title = title
+        self.target = target
+        self.action = action
+        
+        let textWidth = NSAttributedString(
+            string: title,
+            attributes: [.font: Self.standardMenuFont]
+        ).size().width
+        
+        let calculatedWidth = textWidth + (Self.horizontalPadding * 2) // Extra padding for tabs and spacing
+        
+        super.init(frame: NSRect(x: 0, y: 0, width: calculatedWidth, height: Self.standardHeight))
+        setupView()
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    private func setupView() {
+        setAccessibilityRole(.button)
+        setAccessibilityLabel(title)
+    }
+    
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        
+        let appearance = NSAppearance.current
+        
+        if isHovered {
+            NSAppearance.current.performAsCurrentDrawingAppearance {
+                NSColor.selectedContentBackgroundColor.setFill()
+                dirtyRect.fill()
+            }
+        }
+        
+        let textColor = isHovered ? NSColor.selectedMenuItemTextColor : NSColor.labelColor
+        let attributes: [NSAttributedString.Key: Any] = [
+            .foregroundColor: textColor,
+            .font: Self.standardMenuFont,
+            .paragraphStyle: createCenteredParagraphStyle()
+        ]
+        
+        let attributedString = NSAttributedString(string: title, attributes: attributes)
+        let textRect = NSRect(
+            x: Self.horizontalPadding,
+            y: 0,
+            width: bounds.width - (2 * Self.horizontalPadding),
+            height: bounds.height
+        )
+        
+        let textSize = attributedString.size()
+        let yPosition = (bounds.height - textSize.height) / 2
+        
+        attributedString.draw(in: NSRect(
+            x: textRect.origin.x,
+            y: yPosition,
+            width: textRect.width,
+            height: textSize.height
+        ))
+    }
+    
+    private func createCenteredParagraphStyle() -> NSParagraphStyle {
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .natural
+        paragraphStyle.lineBreakMode = .byTruncatingTail
+        return paragraphStyle
+    }
+    
+    override func mouseDown(with event: NSEvent) {
+        handleClick()
+    }
+    
+    override func mouseUp(with event: NSEvent) {
+        // Intentionally empty - we handle everything in mouseDown
+    }
+    
+    private func handleClick() {
+        if let target = target {
+            _ = target.perform(action, with: nil)
+        }
+    }
+    
+    override func mouseEntered(with event: NSEvent) {
+        isHovered = true
+        needsDisplay = true
+        NSCursor.pointingHand.set()
+    }
+    
+    override func mouseExited(with event: NSEvent) {
+        isHovered = false
+        needsDisplay = true
+        NSCursor.arrow.set()
+    }
+    
+    // Set up tracking area for mouse hover effects
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+
+        // Remove existing tracking area if any
+        if let existingTrackingArea = trackingArea {
+            removeTrackingArea(existingTrackingArea)
+        }
+
+        // Create a new tracking area
+        let options: NSTrackingArea.Options = [.mouseEnteredAndExited, .activeAlways, .inVisibleRect]
+        trackingArea = NSTrackingArea(rect: bounds, options: options, owner: self, userInfo: nil)
+
+        if let trackingArea = trackingArea {
+            addTrackingArea(trackingArea)
+        }
     }
 }
