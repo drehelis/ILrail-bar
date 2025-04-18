@@ -609,6 +609,7 @@ class StationMenuItemView: NSView {
     private static let standardHeight: CGFloat = 22
     private static let horizontalPadding: CGFloat = 14
     private static let standardMenuFont = NSFont.menuFont(ofSize: 0)
+    private static let cornerRadius: CGFloat = 4
     
     init(title: String, target: AnyObject?, action: Selector) {
         self.title = title
@@ -638,12 +639,13 @@ class StationMenuItemView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         
-        let appearance = NSAppearance.current
-        
         if isHovered {
             NSAppearance.current.performAsCurrentDrawingAppearance {
+                let bezierPath = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), 
+                                             xRadius: Self.cornerRadius, 
+                                             yRadius: Self.cornerRadius)
                 NSColor.selectedContentBackgroundColor.setFill()
-                dirtyRect.fill()
+                bezierPath.fill()
             }
         }
         
