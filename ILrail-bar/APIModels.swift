@@ -19,6 +19,17 @@ struct APIResponse: Decodable {
     let result: TrainResult
 }
 
+struct TrainSchedule {
+    let trainNumber: String
+    let departureTime: Date
+    let arrivalTime: Date
+    let platform: String?
+    let fromStationName: String
+    let toStationName: String
+    let trainChanges: Int
+    let allTrainNumbers: [String]
+}
+
 struct TrainResult: Decodable {
     let travels: [TravelItem]
 }

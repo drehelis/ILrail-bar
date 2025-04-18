@@ -335,7 +335,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         let fromStationName = fromStation?.name ?? preferences.fromStation
         let toStationName = toStation?.name ?? preferences.toStation
         
-        let stationTitle = "\(fromStationName)\t→\t\(toStationName)"
+        let stationTitle = "\(fromStationName)  \t→\t \(toStationName)"
         
         let customView = StationMenuItemView(
             title: stationTitle,
@@ -398,7 +398,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         firstTrainInfoItem.target = self
         firstTrainInfoItem.toolTip = Constants.toolTipCopyToClipboard
 
-        trainItems.append(NSMenuItem(title: Constants.nextTrainTitle, action: nil, keyEquivalent: ""))
+        let nextTrainHeader = NSMenuItem(title: Constants.nextTrainTitle, action: nil, keyEquivalent: "")
+        nextTrainHeader.isEnabled = false
+        trainItems.append(nextTrainHeader)
         trainItems.append(firstTrainInfoItem)
         
         // Add up to the configured number of additional trains
@@ -408,7 +410,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         
         if trainSchedules.count > 1 {
             trainItems.append(NSMenuItem.separator())
-            trainItems.append(NSMenuItem(title: Constants.upcomingTrainsTitle, action: nil, keyEquivalent: ""))
+            
+            let upcomingHeader = NSMenuItem(title: Constants.upcomingTrainsTitle, action: nil, keyEquivalent: "")
+            upcomingHeader.isEnabled = false
+            trainItems.append(upcomingHeader)
             
             for i in 1..<maxTrainsToShow {
                 let train = trainSchedules[i]
@@ -484,6 +489,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         
         // Add error information
         let errorItem = NSMenuItem(title: message, action: nil, keyEquivalent: "")
+        errorItem.isEnabled = false // Explicitly disable the error message item
         errorItems.append(errorItem)
         
         errorItems.append(contentsOf: commonMenuSetup.items)
@@ -603,7 +609,6 @@ class StationMenuItemView: NSView {
     private let title: String
     private weak var target: AnyObject?
     private let action: Selector
-    private var isHovered: Bool = false
     private var trackingArea: NSTrackingArea?
     
     private static let standardHeight: CGFloat = 22
@@ -621,7 +626,7 @@ class StationMenuItemView: NSView {
             attributes: [.font: Self.standardMenuFont]
         ).size().width
         
-        let calculatedWidth = textWidth + (Self.horizontalPadding * 2) // Extra padding for tabs and spacing
+        let calculatedWidth = textWidth + (Self.horizontalPadding * 2)
         
         super.init(frame: NSRect(x: 0, y: 0, width: calculatedWidth, height: Self.standardHeight))
         setupView()
@@ -639,21 +644,9 @@ class StationMenuItemView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         
-        if isHovered {
-            NSAppearance.current.performAsCurrentDrawingAppearance {
-                let bezierPath = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), 
-                                             xRadius: Self.cornerRadius, 
-                                             yRadius: Self.cornerRadius)
-                NSColor.selectedContentBackgroundColor.setFill()
-                bezierPath.fill()
-            }
-        }
-        
-        let textColor = isHovered ? NSColor.selectedMenuItemTextColor : NSColor.labelColor
         let attributes: [NSAttributedString.Key: Any] = [
-            .foregroundColor: textColor,
-            .font: Self.standardMenuFont,
-            .paragraphStyle: createCenteredParagraphStyle()
+            .foregroundColor: NSColor.labelColor,
+            .font: Self.standardMenuFont
         ]
         
         let attributedString = NSAttributedString(string: title, attributes: attributes)
@@ -675,13 +668,6 @@ class StationMenuItemView: NSView {
         ))
     }
     
-    private func createCenteredParagraphStyle() -> NSParagraphStyle {
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = .natural
-        paragraphStyle.lineBreakMode = .byTruncatingTail
-        return paragraphStyle
-    }
-    
     override func mouseDown(with event: NSEvent) {
         handleClick()
     }
@@ -693,36 +679,6 @@ class StationMenuItemView: NSView {
     private func handleClick() {
         if let target = target {
             _ = target.perform(action, with: nil)
-        }
-    }
-    
-    override func mouseEntered(with event: NSEvent) {
-        isHovered = true
-        needsDisplay = true
-        NSCursor.pointingHand.set()
-    }
-    
-    override func mouseExited(with event: NSEvent) {
-        isHovered = false
-        needsDisplay = true
-        NSCursor.arrow.set()
-    }
-    
-    // Set up tracking area for mouse hover effects
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-
-        // Remove existing tracking area if any
-        if let existingTrackingArea = trackingArea {
-            removeTrackingArea(existingTrackingArea)
-        }
-
-        // Create a new tracking area
-        let options: NSTrackingArea.Options = [.mouseEnteredAndExited, .activeAlways, .inVisibleRect]
-        trackingArea = NSTrackingArea(rect: bounds, options: options, owner: self, userInfo: nil)
-
-        if let trackingArea = trackingArea {
-            addTrackingArea(trackingArea)
         }
     }
 }
