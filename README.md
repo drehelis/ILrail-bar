@@ -10,18 +10,18 @@
 </p>
 
 
-A sleek and efficient macOS menu bar app for tracking Israel Railways train schedules in real-time.
+A sleek and efficient macOS status bar app for tracking Israel Railways train schedules in real-time.
 
 ## Features
 
-- **Menu Bar Integration**: Live train information right in your macOS menu bar
-- **Quick Access**: See upcoming trains at a glance without opening a browser
+- **Status Bar Integration**: Live train information right in your macOS status bar
+- **Quick Access**: See upcoming trains at a glance in a popover interface
 - **Customization**: Set preferred departure & destination stations 
 
 ## Screenshots
 
 <p align="center">
-  <img src="screenshots/menu-bar-pref.png" width="600" alt="Menu Bar Interface">
+  <img src="screenshots/menu-bar-pref.png" width="600" alt="Status Bar Interface">
 </p>
 
 ## Installation
@@ -51,9 +51,12 @@ To pack DMG file, use `./utils/package_dmg.sh`
 
 ## Usage
 
-1. **Initial Setup**: When you first launch the app, it will appear in your menu bar with a train icon
-2. **Select Stations**: Click the icon and select "Preferences..." to choose your departure and arrival stations
-
+1. **Initial Setup**: When you first launch the app, it will appear in your status bar with a train icon
+2. **View Trains**: Click the icon to open a popover with upcoming train information
+3. **Preferences**: Click the "Preferences" button in the popover to configure your stations, refresh interval, and alerts
+4. **Quick Actions**: 
+   - Use the "Reverse Direction" button (↔) to swap departure and arrival stations
+   - Click on a train listing to copy its details to your clipboard
 
 ## Privacy
 

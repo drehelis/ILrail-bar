@@ -15,13 +15,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
     private var currentErrorMessage: String?
     
     private enum Constants {
-        static let aboutAppVersion = "ILrail-bar"
+        static let aboutTitle = "ILrail-bar"
         static let menuBarErrorText = " Error"
         static let menuBarLoadingText = " Loading..."
         static let menuBarNoResultsText = " No trains"
         static let noTrainFoundMessage = "No trains found for route"
-        static let toolTipStationsText = "Click to reverse direction"
-        static let toolTipCopyToClipboard = "Click to copy train info to clipboard"
     }
         
     private func createAndShowWindow(
@@ -411,7 +409,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
         let hostingView = NSHostingView(rootView: aboutView)
         createAndShowWindow(
             size: NSSize(width: 350, height: 350),
-            title: Constants.aboutAppVersion,
+            title: Constants.aboutTitle,
             styleMask: [.titled, .closable],
             center: true,
             view: hostingView,

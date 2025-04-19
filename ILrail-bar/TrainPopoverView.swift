@@ -40,21 +40,11 @@ struct TrainPopoverView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header with station names and reverse button
-            Button(action: onReverseDirection) {
-                HStack {
-                    Text("\(fromStationName) → \(toStationName)")
-                        .font(.headline)
-                        .lineLimit(1)
-                    Spacer()
-                    Image(systemName: "arrow.left.arrow.right")
-                        .font(.caption)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(PlainButtonStyle())
-            .padding([.horizontal, .top])
-            .padding(.bottom, 5)
-            .help("Click to reverse direction")
+            HeaderView(
+                fromStationName: fromStationName,
+                toStationName: toStationName,
+                onReverseDirection: onReverseDirection
+            )
             
             Divider()
             
@@ -115,56 +105,14 @@ struct TrainPopoverView: View {
                 Divider()
             }
             
-            // Action buttons
             HStack(spacing: 15) {
-                Button(action: onWebsite) {
-                    HStack(spacing: 2) {
-                        Image(systemName: "safari")
-                        Text("Website")
-                            .font(.callout)
-                    }
-                }
-                .buttonStyle(LinkButtonStyle())
+                LinkButton(icon: "safari", text: "Website", action: onWebsite)
                 
-                Button(action: onRefresh) {
-                    HStack(spacing: 2) {
-                        Image(systemName: "arrow.clockwise")
-                        Text("Refresh")
-                            .font(.callout)
-                    }
-                }
-                .buttonStyle(LinkButtonStyle())
-                .keyboardShortcut("r")
+                LinkButton(icon: "arrow.clockwise", text: "Refresh", action: onRefresh, keyboardShortcut: .init("r"))
                                 
-                Button(action: onPreferences) {
-                    HStack(spacing: 2) {
-                        Image(systemName: "gear")
-                        Text("Preferences")
-                            .font(.callout)
-                    }
-                }
-                .buttonStyle(LinkButtonStyle())
-                .keyboardShortcut(",")
+                LinkButton(icon: "gear", text: "Prefs.", action: onPreferences, keyboardShortcut: .init(","))
                                 
-                Menu {
-                    Button(action: onAbout) {
-                        Label("About", systemImage: "info.circle")
-                    }
-                    
-                    Button(action: onQuit) {
-                        Label("Quit", systemImage: "power")
-                    }
-                    .keyboardShortcut("q")
-                    
-                } label: {
-                    HStack(spacing: 2) {
-                        Image(systemName: "ellipsis.circle")
-                        Text("More")
-                            .font(.callout)
-                    }
-                }
-                .menuStyle(BorderlessButtonMenuStyle())
-                .buttonStyle(LinkButtonStyle())
+                MoreMenuButton(onAbout: onAbout, onQuit: onQuit)
             }
             .padding()
         }
@@ -283,6 +231,97 @@ struct TrainInfoRow: View {
         
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(trainInfo, forType: .string)
+    }
+}
+
+struct HeaderView: View {
+    let fromStationName: String
+    let toStationName: String
+    let onReverseDirection: () -> Void
+    
+    var body: some View {
+        Button(action: onReverseDirection) {
+            HStack {
+                Text("\(fromStationName) → \(toStationName)")
+                    .font(.headline)
+                    .lineLimit(1)
+                Spacer()
+                Image(systemName: "arrow.left.arrow.right")
+                    .font(.caption)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PlainButtonStyle())
+        .padding([.horizontal, .top])
+        .padding(.bottom, 5)
+        .help("Click to reverse direction")
+    }
+}
+
+// Shared component for consistent button styling
+struct LinkButton: View {
+    let icon: String
+    let text: String
+    let action: () -> Void
+    let keyboardShortcut: KeyboardShortcut?
+    
+    init(icon: String, text: String, action: @escaping () -> Void, keyboardShortcut: KeyboardShortcut? = nil) {
+        self.icon = icon
+        self.text = text
+        self.action = action
+        self.keyboardShortcut = keyboardShortcut
+    }
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 2) {
+                Image(systemName: icon)
+                Text(text)
+                    .font(.callout)
+            }
+        }
+        .buttonStyle(LinkButtonStyle())
+        .if(keyboardShortcut != nil) { view in
+            view.keyboardShortcut(keyboardShortcut!)
+        }
+    }
+}
+
+// Shared menu component for both popover views
+struct MoreMenuButton: View {
+    let onAbout: () -> Void
+    let onQuit: () -> Void
+    
+    var body: some View {
+        Menu {
+            Button(action: onAbout) {
+                Label("About", systemImage: "info.circle")
+            }
+            
+            Button(action: onQuit) {
+                Label("Quit", systemImage: "power")
+            }
+            .keyboardShortcut("q")
+        } label: {
+            HStack(spacing: 2) {
+                Image(systemName: "ellipsis.circle")
+                Text("More")
+                    .font(.callout)
+            }
+        }
+        .menuStyle(BorderlessButtonMenuStyle())
+        .buttonStyle(LinkButtonStyle())
+    }
+}
+
+// Extension to conditionally apply modifiers
+extension View {
+    @ViewBuilder func `if`<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
+        if condition {
+            transform(self)
+        } else {
+            self
+        }
     }
 }
 
