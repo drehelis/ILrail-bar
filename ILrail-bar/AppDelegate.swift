@@ -1,42 +1,27 @@
 import SwiftUI
 import Cocoa
 
-class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItemValidation {
+class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverDelegate {
     private var statusItem: NSStatusItem!
-    private var menu: NSMenu!
+    private var popover: NSPopover!
     private var trainScheduleTimer: Timer?
     private let networkManager = NetworkManager()
     private var preferencesWindow: NSWindow?
     private var aboutWindow: NSWindow?
+    private var eventMonitor: EventMonitor?
+    
+    // Current train schedules and error state
+    private var currentTrainSchedules: [TrainSchedule] = []
+    private var currentErrorMessage: String?
     
     private enum Constants {
         static let aboutAppVersion = "ILrail-bar"
         static let menuBarErrorText = " Error"
         static let menuBarLoadingText = " Loading..."
-        static let menuBarNoResultsText = " No results"
+        static let menuBarNoResultsText = " No trains"
         static let noTrainFoundMessage = "No trains found for route"
         static let toolTipStationsText = "Click to reverse direction"
         static let toolTipCopyToClipboard = "Click to copy train info to clipboard"
-        
-        // Menu section titles
-        static let nextTrainTitle = "Next:"
-        static let upcomingTrainsTitle = "Upcoming:"
-    }
-        
-    @objc func copyTrainInfoToClipboard(_ sender: NSMenuItem) {
-        var textToCopy = ""
-        
-        if let attributedTitle = sender.attributedTitle {
-            textToCopy = attributedTitle.string
-        } else if !sender.title.isEmpty {
-            textToCopy = sender.title
-        }
-        
-        // Copy to clipboard if text is not empty
-        if !textToCopy.isEmpty {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(textToCopy, forType: .string)
-        }
     }
         
     private func createAndShowWindow(
@@ -82,50 +67,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         logDebug("\(title) window created and should be visible now")
     }
     
-    private func rebuildMenu(withTrainsOrError: Bool, errorItems: [NSMenuItem]? = nil, trainItems: [NSMenuItem]? = nil) {
-        // Keep track of important menu items
-        let importantItems = menu.items.filter { item in
-            return item.title == "Preferences..." || 
-                   item.title == "Refresh" || 
-                   item.title == "About" ||
-                   item.title == "Quit" ||
-                   item.isSeparatorItem
-        }
-        
-        // Clear all items
-        menu.removeAllItems()
-        
-        // Add separator at the top
-        menu.addItem(NSMenuItem.separator())
-        
-        // Add train information or error items
-        if withTrainsOrError {
-            if let trainItems = trainItems {
-                trainItems.forEach { menu.addItem($0) }
-            } else if let errorItems = errorItems {
-                errorItems.forEach { menu.addItem($0) }
-            }
-        }
-        
-        // Add a separator before the control items
-        menu.addItem(NSMenuItem.separator())
-        
-        // Restore important menu items
-        for item in importantItems {
-            if item.title == "Preferences..." || item.title == "Refresh" || item.title == "About" || item.title == "Quit" {
-                // Make sure our About menu item always has its action and target set
-                if item.title == "About" {
-                    item.action = #selector(showAbout(_:))
-                    item.target = self
-                }
-                menu.addItem(item)
-            } else if item.isSeparatorItem && menu.items.last?.title != nil {
-                // Add separators only between items, not after another separator
-                menu.addItem(NSMenuItem.separator())
-            }
-        }
-    }
-    
     // This method is called before applicationDidFinishLaunching
     func applicationWillFinishLaunching(_ notification: Notification) {
         // LSUIElement is properly set in Info.plist, no need to explicitly set activation policy
@@ -135,7 +76,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         // Fetch station data as soon as the app starts
         fetchStationData()
         
-        setupMenuBar()
+        // Initialize popover
+        popover = NSPopover()
+        popover.behavior = .transient
+        popover.delegate = self
+        
+        setupStatusItem()
         fetchTrainSchedule()
         
         trainScheduleTimer = Timer.scheduledTimer(
@@ -153,6 +99,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
             name: .reloadPreferencesChanged,
             object: nil
         )
+        
+        // Setup event monitor to close popover when clicking outside
+        eventMonitor = EventMonitor(mask: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            if let self = self, self.popover.isShown {
+                self.closePopover()
+            }
+        }
+        eventMonitor?.start()
+    }
+    
+    func applicationWillTerminate(_ notification: Notification) {
+        eventMonitor?.stop()
     }
     
     @objc private func timerRefresh() {
@@ -178,7 +136,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         }
     }
     
-    private func setupMenuBar() {
+    private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
         if let button = statusItem.button {
@@ -195,55 +153,125 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
                     NSAttributedString.Key.font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
                 ]
             )
+            
+            // Add action to show popover
+            button.action = #selector(togglePopover)
+            button.target = self
         }
-        
-        // Create menu with better visual organization
-        menu = NSMenu()
-        
-        // Add a separator at the top of the menu
-        menu.addItem(NSMenuItem.separator())
-        
-        // Add preferences menu item with direct action block instead of selector
-        let prefsItem = NSMenuItem(title: "Preferences...", action: nil, keyEquivalent: ",")
-        prefsItem.image = NSImage(systemSymbolName: "gear", accessibilityDescription: "Preferences")
-        prefsItem.target = self
-        // Set action separately after configuration
-        prefsItem.action = #selector(showPreferences(_:))
-        menu.addItem(prefsItem)
-        
-        // Add refresh item with icon
-        let refreshItem = NSMenuItem(title: "Refresh", action: #selector(manualRefresh), keyEquivalent: "r")
-        refreshItem.target = self
-        refreshItem.image = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "Refresh")
-        menu.addItem(refreshItem)
-        
-        menu.addItem(NSMenuItem.separator())
-        
-        // Add about item with icon
-        let aboutItem = NSMenuItem(title: "About", action: #selector(showAbout(_:)), keyEquivalent: "")
-        aboutItem.image = NSImage(systemSymbolName: "info.circle", accessibilityDescription: "About")
-        aboutItem.target = self
-        menu.addItem(aboutItem)
-        
-        // Add a separator before the quit item
-        menu.addItem(NSMenuItem.separator())
-        
-        // Add quit item with icon
-        let quitItem = NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        quitItem.image = NSImage(systemSymbolName: "power", accessibilityDescription: "Quit")
-        menu.addItem(quitItem)
-        
-        statusItem.menu = menu
     }
     
-    @objc func showPreferences(_ sender: Any?) {
+    @objc func togglePopover(_ sender: AnyObject?) {
+        if popover.isShown {
+            closePopover()
+        } else {
+            showPopover()
+        }
+    }
+    
+    func showPopover() {
+        if let button = statusItem.button {
+            updatePopoverContent()
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        }
+    }
+    
+    func closePopover() {
+        popover.performClose(nil)
+    }
+    
+    private func updatePopoverContent() {
+        if !currentTrainSchedules.isEmpty {
+            // Get station names
+            let preferences = PreferencesManager.shared.preferences
+            let stations = Station.allStations
+            
+            // Find station names from the Station class based on preferences
+            let fromStation = stations.first(where: { $0.id == preferences.fromStation })
+            let toStation = stations.first(where: { $0.id == preferences.toStation })
+            
+            // Use the found station names, or fall back to the IDs if not found
+            let fromStationName = fromStation?.name ?? preferences.fromStation
+            let toStationName = toStation?.name ?? preferences.toStation
+            
+            // Create the train popover view
+            let trainView = TrainPopoverView(
+                trainSchedules: currentTrainSchedules,
+                fromStationName: fromStationName,
+                toStationName: toStationName,
+                preferences: preferences,
+                onReverseDirection: { [weak self] in
+                    self?.reverseTrainDirection()
+                },
+                onRefresh: { [weak self] in
+                    self?.manualRefresh()
+                },
+                onPreferences: { [weak self] in
+                    self?.showPreferences()
+                },
+                onWebsite: { [weak self] in
+                    self?.openRailWebsite()
+                },
+                onAbout: { [weak self] in
+                    self?.showAbout()
+                },
+                onQuit: {
+                    NSApplication.shared.terminate(nil)
+                }
+            )
+            
+            popover.contentViewController = NSHostingController(rootView: trainView)
+        } else if let errorMessage = currentErrorMessage {
+            // Get station names
+            let preferences = PreferencesManager.shared.preferences
+            let stations = Station.allStations
+            
+            // Find station names from the Station class based on preferences
+            let fromStation = stations.first(where: { $0.id == preferences.fromStation })
+            let toStation = stations.first(where: { $0.id == preferences.toStation })
+            
+            // Use the found station names, or fall back to the IDs if not found
+            let fromStationName = fromStation?.name ?? preferences.fromStation
+            let toStationName = toStation?.name ?? preferences.toStation
+            
+            // Create the error popover view
+            let errorView = ErrorPopoverView(
+                errorMessage: errorMessage,
+                fromStationName: fromStationName,
+                toStationName: toStationName,
+                onReverseDirection: { [weak self] in
+                    self?.reverseTrainDirection()
+                },
+                onRefresh: { [weak self] in
+                    self?.manualRefresh()
+                },
+                onPreferences: { [weak self] in
+                    self?.showPreferences()
+                },
+                onWebsite: { [weak self] in
+                    self?.openRailWebsite()
+                },
+                onAbout: { [weak self] in
+                    self?.showAbout()
+                },
+                onQuit: {
+                    NSApplication.shared.terminate(nil)
+                }
+            )
+            
+            popover.contentViewController = NSHostingController(rootView: errorView)
+        }
+    }
+    
+    @objc func showPreferences(_ sender: Any? = nil) {
+        closePopover()
+        
         // Create a new hosting view with an instance of PreferencesView
         // Pass nil for the window as we'll set it properly after creating it
         let preferencesView = PreferencesView()
         let hostingView = NSHostingView(rootView: preferencesView)
         
         createAndShowWindow(
-            size: NSSize(width: 400, height: 250),
+            size: NSSize(width: 400, height: 350),
             title: "Preferences",
             styleMask: [.titled, .closable, .miniaturizable],
             view: hostingView,
@@ -294,13 +322,34 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
                 switch result {
                 case .success(let trainSchedules):
                     if (!trainSchedules.isEmpty) {
-                        // Pass all train schedules to the update method
-                        self.updateMenuBarWithTrains(trainSchedules)
+                        // Store train schedules
+                        self.currentTrainSchedules = trainSchedules
+                        self.currentErrorMessage = nil
+                        self.updateStatusBarWithTrain(trainSchedules[0])
+                        
+                        // Update popover content if it's visible
+                        if self.popover.isShown {
+                            self.updatePopoverContent()
+                        }
                     } else {
-                        self.updateMenuBarWithError(Constants.noTrainFoundMessage)
+                        self.currentTrainSchedules = []
+                        self.currentErrorMessage = Constants.noTrainFoundMessage
+                        self.updateStatusBarWithError(Constants.noTrainFoundMessage)
+                        
+                        // Update popover content if it's visible
+                        if self.popover.isShown {
+                            self.updatePopoverContent()
+                        }
                     }
                 case .failure(let error):
-                    self.updateMenuBarWithError(error.localizedDescription)
+                    self.currentTrainSchedules = []
+                    self.currentErrorMessage = error.localizedDescription
+                    self.updateStatusBarWithError(error.localizedDescription)
+                    
+                    // Update popover content if it's visible
+                    if self.popover.isShown {
+                        self.updatePopoverContent()
+                    }
                 }
             }
         }
@@ -308,156 +357,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
     
     @objc private func manualRefresh() {
         logInfo("Refresh request by user")
+        closePopover()
         fetchTrainSchedule(showLoading: true)
     }
     
-    // Helper functions to create small-sized attributed text and append it
-    private func createSmallText(_ text: String) -> NSAttributedString {
-        return NSAttributedString(string: text, attributes: [
-            .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
-        ])
-    }
-
-    private func appendSmallText(_ smallText: String, to attributedString: NSMutableAttributedString) {
-        attributedString.append(createSmallText(smallText))
-    }
-
-    private func setupCommonMenuItems() -> (stationItem: NSMenuItem, items: [NSMenuItem]) {
-        // Get the current route information from preferences
-        let preferences = PreferencesManager.shared.preferences
-        let stations = Station.allStations
-        
-        // Find station names from the Station class based on preferences
-        let fromStation = stations.first(where: { $0.id == preferences.fromStation })
-        let toStation = stations.first(where: { $0.id == preferences.toStation })
-        
-        // Use the found station names, or fall back to the IDs if not found
-        let fromStationName = fromStation?.name ?? preferences.fromStation
-        let toStationName = toStation?.name ?? preferences.toStation
-        
-        let stationTitle = "\(fromStationName)  \t→\t \(toStationName)"
-        
-        let customView = StationMenuItemView(
-            title: stationTitle,
-            target: self,
-            action: #selector(reverseTrainDirection(_:))
-        )
-        customView.toolTip = Constants.toolTipStationsText
-        
-        let stationsItem = NSMenuItem()
-        stationsItem.view = customView
-        
-        // Create common items array with the separator and website link
-        var commonItems: [NSMenuItem] = []
-        commonItems.append(NSMenuItem.separator())
-        commonItems.append(createWebsiteMenuItem())
-        
-        return (stationsItem, commonItems)
-    }
-    
-    private func updateMenuBarWithTrains(_ trainSchedules: [TrainSchedule]) {
-        // Create train menu items
-        var trainItems: [NSMenuItem] = []
-        
-        // Get common menu items
-        let commonMenuSetup = setupCommonMenuItems()
-        trainItems.append(commonMenuSetup.stationItem)
-        trainItems.append(NSMenuItem.separator())
-        
-        // Get the first train for the status bar display
-        let firstTrain = trainSchedules[0]
-        let timeUntilDepartureSeconds = firstTrain.departureTime.timeIntervalSinceNow // in seconds
-        let timeUntilDepartureMinutes = timeUntilDepartureSeconds / 60 // convert to minutes        
-        logDebug("Time until departure: \(timeUntilDepartureMinutes) minutes")
-        
-        // Display the next train
-        let _travelTime = DateFormatters.formatTravelTime(from: firstTrain.departureTime, to: firstTrain.arrivalTime)
-        let _departureTime = DateFormatters.timeFormatter.string(from: firstTrain.departureTime)
-        let _arrivalTime = DateFormatters.timeFormatter.string(from: firstTrain.arrivalTime)
-
-        let firstTrainTitle = "\(_departureTime)\t→\t\(_arrivalTime) (\(firstTrain.trainChanges))"
-        
-        // Create an attributed string for the first train info
-        let firstTrainAttrString = NSMutableAttributedString(string: firstTrainTitle)
-        
-        appendSmallText(" [\(_travelTime)]", to: firstTrainAttrString)
-        
-        if firstTrain.trainChanges > 0 && !firstTrain.allTrainNumbers.isEmpty {
-            let trainNumbersString = firstTrain.allTrainNumbers.map { "#\($0)" }.joined(separator: ", ")
-            appendSmallText(" (\(trainNumbersString))", to: firstTrainAttrString)
-        } else if !firstTrain.trainNumber.isEmpty {
-            appendSmallText(" (#\(firstTrain.trainNumber))", to: firstTrainAttrString)
-        }
-        
-        let firstTrainInfoItem = NSMenuItem(
-            title: "",
-            action: #selector(copyTrainInfoToClipboard(_:)), 
-            keyEquivalent: ""
-        )
-        firstTrainInfoItem.attributedTitle = firstTrainAttrString
-        firstTrainInfoItem.target = self
-        firstTrainInfoItem.toolTip = Constants.toolTipCopyToClipboard
-
-        let nextTrainHeader = NSMenuItem(title: Constants.nextTrainTitle, action: nil, keyEquivalent: "")
-        nextTrainHeader.isEnabled = false
-        trainItems.append(nextTrainHeader)
-        trainItems.append(firstTrainInfoItem)
-        
-        // Add up to the configured number of additional trains
-        let preferences = PreferencesManager.shared.preferences
-        let totalTrainsToShow = preferences.upcomingItemsCount + 1 // First train + additional trains
-        let maxTrainsToShow = min(totalTrainsToShow, trainSchedules.count)
-        
-        if trainSchedules.count > 1 {
-            trainItems.append(NSMenuItem.separator())
-            
-            let upcomingHeader = NSMenuItem(title: Constants.upcomingTrainsTitle, action: nil, keyEquivalent: "")
-            upcomingHeader.isEnabled = false
-            trainItems.append(upcomingHeader)
-            
-            for i in 1..<maxTrainsToShow {
-                let train = trainSchedules[i]
-                
-                // Create the basic train info title
-                let _travelTime = DateFormatters.formatTravelTime(from: train.departureTime, to: train.arrivalTime)
-                let _departureTime = DateFormatters.timeFormatter.string(from: train.departureTime)
-                let _arrivalTime = DateFormatters.timeFormatter.string(from: train.arrivalTime)
-
-                let trainBaseTitle = "\(_departureTime)\t→\t\(_arrivalTime) (\(train.trainChanges))"
-                let trainAttrString = NSMutableAttributedString(string: trainBaseTitle)
-                
-                appendSmallText(" [\(_travelTime)]", to: trainAttrString)
-                
-                if train.trainChanges > 0 && !train.allTrainNumbers.isEmpty {
-                    let trainNumbersString = train.allTrainNumbers.map { "#\($0)" }.joined(separator: ", ")
-                    appendSmallText(" (\(trainNumbersString))", to: trainAttrString)
-                } else if !train.trainNumber.isEmpty {
-                    appendSmallText(" (#\(train.trainNumber))", to: trainAttrString)
-                }
-                
-                let trainInfoItem = NSMenuItem(
-                    title: "",
-                    action: #selector(copyTrainInfoToClipboard(_:)), 
-                    keyEquivalent: ""
-                )
-                trainInfoItem.attributedTitle = trainAttrString
-                trainInfoItem.target = self
-                trainInfoItem.toolTip = Constants.toolTipCopyToClipboard
-                trainItems.append(trainInfoItem)
-            }
-        }
-        
-        trainItems.append(contentsOf: commonMenuSetup.items)
-        
-        // Use the helper method to rebuild the menu
-        rebuildMenu(withTrainsOrError: true, trainItems: trainItems)
-        
+    private func updateStatusBarWithTrain(_ train: TrainSchedule) {
         if let button = statusItem.button {
-            let departureTimeString = DateFormatters.timeFormatter.string(from: firstTrain.departureTime)
+            let departureTimeString = DateFormatters.timeFormatter.string(from: train.departureTime)
+            
+            let timeUntilDepartureSeconds = train.departureTime.timeIntervalSinceNow
+            let timeUntilDepartureMinutes = timeUntilDepartureSeconds / 60
+            logDebug("Time until departure: \(timeUntilDepartureMinutes) minutes")
             
             let preferences = PreferencesManager.shared.preferences
-            let redTimeUntilDeparture = TimeInterval(preferences.redAlertMinutes * 60) // Convert minutes to seconds
-            let blueTimeUntilDeparture = TimeInterval(preferences.blueAlertMinutes * 60) // Convert minutes to seconds
+            let redTimeUntilDeparture = TimeInterval(preferences.redAlertMinutes * 60)
+            let blueTimeUntilDeparture = TimeInterval(preferences.blueAlertMinutes * 60)
             
             if timeUntilDepartureSeconds <= redTimeUntilDeparture {
                 button.attributedTitle = NSAttributedString(
@@ -478,26 +392,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         }
     }
     
-    private func updateMenuBarWithError(_ message: String) {
-        // Create error menu items
-        var errorItems: [NSMenuItem] = []
-        
-        // Get common menu items
-        let commonMenuSetup = setupCommonMenuItems()
-        errorItems.append(commonMenuSetup.stationItem)
-        errorItems.append(NSMenuItem.separator())
-        
-        // Add error information
-        let errorItem = NSMenuItem(title: message, action: nil, keyEquivalent: "")
-        errorItem.isEnabled = false // Explicitly disable the error message item
-        errorItems.append(errorItem)
-        
-        errorItems.append(contentsOf: commonMenuSetup.items)
-        
-        // Use the helper method to rebuild the menu
-        rebuildMenu(withTrainsOrError: true, errorItems: errorItems)
-        
-        // Update status bar with error indicator
+    private func updateStatusBarWithError(_ message: String) {
         if let button = statusItem.button {
             let menubarText = message == Constants.noTrainFoundMessage ? Constants.menuBarNoResultsText : Constants.menuBarErrorText
             let textColor = message == Constants.noTrainFoundMessage ? NSColor.labelColor : NSColor.systemRed
@@ -509,7 +404,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         }
     }
         
-    @objc func showAbout(_ sender: Any?) {      
+    @objc func showAbout(_ sender: Any? = nil) {
+        closePopover()
+        
         let aboutView = AboutView(window: aboutWindow ?? NSWindow())
         let hostingView = NSHostingView(rootView: aboutView)
         createAndShowWindow(
@@ -522,14 +419,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
         )
     }
     
-    @objc private func openRailWebsite(_ sender: NSMenuItem) {
-        if let url = sender.representedObject as? URL {
-            NSWorkspace.shared.open(url)
-        }
-    }
-    
-    // Helper method to create the "View on Official website" menu item
-    private func createWebsiteMenuItem() -> NSMenuItem {
+    @objc private func openRailWebsite(_ sender: Any? = nil) {
+        closePopover()
+        
         let preferences = PreferencesManager.shared.preferences
         let currentDate = Date()
         let currentDateStr = DateFormatters.dateFormatter.string(from: currentDate)
@@ -551,11 +443,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
                                  "&scheduleType=1"
                                )
         
-        let websiteItem = NSMenuItem(title: "View on Official website", action: #selector(openRailWebsite(_:)), keyEquivalent: "")
-        websiteItem.representedObject = officialSiteUrl
-        websiteItem.target = self
-        websiteItem.image = NSImage(systemSymbolName: "safari", accessibilityDescription: "Web browser")
-        return websiteItem
+        if let url = officialSiteUrl {
+            NSWorkspace.shared.open(url)
+        }
     }
     
     func windowWillClose(_ notification: Notification) {
@@ -573,16 +463,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
             aboutWindow = nil
         }
     }
-        
-    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        if menuItem.action == #selector(showPreferences(_:)) || 
-           menuItem.action == #selector(showAbout(_:)) {
-            return true
-        }
-        return true
-    }
 
-    @objc private func reverseTrainDirection(_ sender: NSMenuItem) {
+    private func reverseTrainDirection() {
         let preferences = PreferencesManager.shared.preferences
         
         let oldFromStation = preferences.fromStation
@@ -605,80 +487,29 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItem
     }
 }
 
-class StationMenuItemView: NSView {
-    private let title: String
-    private weak var target: AnyObject?
-    private let action: Selector
-    private var trackingArea: NSTrackingArea?
+// Event monitor to detect clicks outside the popover
+class EventMonitor {
+    private var monitor: Any?
+    private let mask: NSEvent.EventTypeMask
+    private let handler: (NSEvent?) -> Void
     
-    private static let standardHeight: CGFloat = 22
-    private static let horizontalPadding: CGFloat = 14
-    private static let standardMenuFont = NSFont.menuFont(ofSize: 0)
-    private static let cornerRadius: CGFloat = 4
-    
-    init(title: String, target: AnyObject?, action: Selector) {
-        self.title = title
-        self.target = target
-        self.action = action
-        
-        let textWidth = NSAttributedString(
-            string: title,
-            attributes: [.font: Self.standardMenuFont]
-        ).size().width
-        
-        let calculatedWidth = textWidth + (Self.horizontalPadding * 2)
-        
-        super.init(frame: NSRect(x: 0, y: 0, width: calculatedWidth, height: Self.standardHeight))
-        setupView()
+    init(mask: NSEvent.EventTypeMask, handler: @escaping (NSEvent?) -> Void) {
+        self.mask = mask
+        self.handler = handler
     }
     
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
+    deinit {
+        stop()
     }
     
-    private func setupView() {
-        setAccessibilityRole(.button)
-        setAccessibilityLabel(title)
+    func start() {
+        monitor = NSEvent.addGlobalMonitorForEvents(matching: mask, handler: handler)
     }
     
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-        
-        let attributes: [NSAttributedString.Key: Any] = [
-            .foregroundColor: NSColor.labelColor,
-            .font: Self.standardMenuFont
-        ]
-        
-        let attributedString = NSAttributedString(string: title, attributes: attributes)
-        let textRect = NSRect(
-            x: Self.horizontalPadding,
-            y: 0,
-            width: bounds.width - (2 * Self.horizontalPadding),
-            height: bounds.height
-        )
-        
-        let textSize = attributedString.size()
-        let yPosition = (bounds.height - textSize.height) / 2
-        
-        attributedString.draw(in: NSRect(
-            x: textRect.origin.x,
-            y: yPosition,
-            width: textRect.width,
-            height: textSize.height
-        ))
-    }
-    
-    override func mouseDown(with event: NSEvent) {
-        handleClick()
-    }
-    
-    override func mouseUp(with event: NSEvent) {
-        // Intentionally empty - we handle everything in mouseDown
-    }
-    
-    private func handleClick() {
-        if let target = target {
-            _ = target.perform(action, with: nil)
+    func stop() {
+        if monitor != nil {
+            NSEvent.removeMonitor(monitor!)
+            monitor = nil
         }
     }
 }
