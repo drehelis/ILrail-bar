@@ -4,6 +4,7 @@ struct ErrorPopoverView: View {
     let errorMessage: String
     let fromStationName: String
     let toStationName: String
+    let isRefreshing: Bool // Added property to track refresh state
     let onReverseDirection: () -> Void
     let onRefresh: () -> Void
     let onPreferences: () -> Void
@@ -58,9 +59,14 @@ struct ErrorPopoverView: View {
             HStack(spacing: 15) {
                 LinkButton(icon: "safari", text: "Website", action: onWebsite)
                                 
-                LinkButton(icon: "arrow.clockwise", text: "Refresh", action: onRefresh, keyboardShortcut: .init("r"))
+                LinkButton(
+                    icon: "arrow.clockwise", 
+                    text: isRefreshing ? "Loading" : "Refresh ", 
+                    action: onRefresh, 
+                    isRefreshing: isRefreshing
+                )
                 
-                LinkButton(icon: "gear", text: "Prefs.", action: onPreferences, keyboardShortcut: .init(","))
+                LinkButton(icon: "gear", text: "Prefs.", action: onPreferences)
                 
                 MoreMenuButton(onAbout: onAbout, onQuit: onQuit)
             }
@@ -77,6 +83,7 @@ struct ErrorPopoverView_Previews: PreviewProvider {
             errorMessage: "No trains found for route",
             fromStationName: "Tel Aviv - Savidor",
             toStationName: "Haifa - Hof HaCarmel",
+            isRefreshing: false,
             onReverseDirection: {},
             onRefresh: {},
             onPreferences: {},

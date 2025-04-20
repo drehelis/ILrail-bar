@@ -13,11 +13,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
     // Current train schedules and error state
     private var currentTrainSchedules: [TrainSchedule] = []
     private var currentErrorMessage: String?
+    private var isRefreshing: Bool = false
     
     private enum Constants {
         static let aboutTitle = "ILrail-bar"
         static let menuBarErrorText = " Error"
-        static let menuBarLoadingText = " Loading..."
         static let menuBarNoResultsText = " No trains"
         static let noTrainFoundMessage = "No trains found for route"
     }
@@ -142,16 +142,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             let tramImage = NSImage(systemSymbolName: "tram.fill", accessibilityDescription: "Train")
             tramImage?.isTemplate = true  // Ensures proper appearance in dark/light modes
             button.image = tramImage
-            
-            // Add loading message with a styled appearance
-            button.attributedTitle = NSAttributedString(
-                string: Constants.menuBarLoadingText,
-                attributes: [
-                    NSAttributedString.Key.foregroundColor: NSColor.secondaryLabelColor,
-                    NSAttributedString.Key.font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
-                ]
-            )
-            
             // Add action to show popover
             button.action = #selector(togglePopover)
             button.target = self
@@ -197,6 +187,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
                 fromStationName: fromStationName,
                 toStationName: toStationName,
                 preferences: preferences,
+                isRefreshing: isRefreshing,
                 onReverseDirection: { [weak self] in
                     self?.reverseTrainDirection()
                 },
@@ -236,6 +227,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
                 errorMessage: errorMessage,
                 fromStationName: fromStationName,
                 toStationName: toStationName,
+                isRefreshing: isRefreshing,
                 onReverseDirection: { [weak self] in
                     self?.reverseTrainDirection()
                 },
@@ -303,20 +295,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
     }
     
     @objc private func fetchTrainSchedule(showLoading: Bool = true) {
-        if showLoading, let button = statusItem.button {
-            button.attributedTitle = NSAttributedString(
-                string: Constants.menuBarLoadingText,
-                attributes: [
-                    NSAttributedString.Key.foregroundColor: NSColor.secondaryLabelColor,
-                    NSAttributedString.Key.font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
-                ]
-            )
+        // Set the refresh state if we want to show loading
+        if showLoading {
+            isRefreshing = true
+            
+            // Update popover content if it's visible to show the loading state
+            if popover.isShown {
+                updatePopoverContent()
+            }
         }
-        
         networkManager.fetchTrainSchedule { [weak self] result in
             guard let self = self else { return }
             
             DispatchQueue.main.async {
+                // Reset refresh state
+                self.isRefreshing = false
+                
                 switch result {
                 case .success(let trainSchedules):
                     if (!trainSchedules.isEmpty) {
@@ -355,7 +349,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
     
     @objc private func manualRefresh() {
         logInfo("Refresh request by user")
-        fetchTrainSchedule(showLoading: true)
+        
+        // Set refresh state immediately to update the UI
+        isRefreshing = true
+        
+        // Update the popover UI to show loading state
+        if popover.isShown {
+            updatePopoverContent()
+        }
+        
+        // small delay allows the animation to be visible to the user
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.fetchTrainSchedule(showLoading: false)
+        }
     }
     
     private func updateStatusBarWithTrain(_ train: TrainSchedule) {

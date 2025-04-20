@@ -4,6 +4,7 @@ struct TrainPopoverView: View {
     let trainSchedules: [TrainSchedule]
     let fromStationName: String
     let toStationName: String
+    let isRefreshing: Bool
     let onReverseDirection: () -> Void
     let onRefresh: () -> Void
     let onPreferences: () -> Void
@@ -18,6 +19,7 @@ struct TrainPopoverView: View {
          fromStationName: String,
          toStationName: String,
          preferences: StationPreferences,
+         isRefreshing: Bool = false,
          onReverseDirection: @escaping () -> Void,
          onRefresh: @escaping () -> Void,
          onPreferences: @escaping () -> Void,
@@ -27,6 +29,7 @@ struct TrainPopoverView: View {
         self.trainSchedules = trainSchedules
         self.fromStationName = fromStationName
         self.toStationName = toStationName
+        self.isRefreshing = isRefreshing
         self.onReverseDirection = onReverseDirection
         self.onRefresh = onRefresh
         self.onPreferences = onPreferences
@@ -108,9 +111,14 @@ struct TrainPopoverView: View {
             HStack(spacing: 15) {
                 LinkButton(icon: "safari", text: "Website", action: onWebsite)
                 
-                LinkButton(icon: "arrow.clockwise", text: "Refresh", action: onRefresh, keyboardShortcut: .init("r"))
+                LinkButton(
+                    icon: "arrow.clockwise", 
+                    text: isRefreshing ? "Loading" : "Refresh ", 
+                    action: onRefresh, 
+                    isRefreshing: isRefreshing
+                )
                                 
-                LinkButton(icon: "gear", text: "Prefs.", action: onPreferences, keyboardShortcut: .init(","))
+                LinkButton(icon: "gear", text: "Prefs.", action: onPreferences)
                                 
                 MoreMenuButton(onAbout: onAbout, onQuit: onQuit)
             }
@@ -261,27 +269,30 @@ struct LinkButton: View {
     let icon: String
     let text: String
     let action: () -> Void
-    let keyboardShortcut: KeyboardShortcut?
+    var isRefreshing: Bool = false
     
-    init(icon: String, text: String, action: @escaping () -> Void, keyboardShortcut: KeyboardShortcut? = nil) {
+    init(icon: String, text: String, action: @escaping () -> Void, isRefreshing: Bool = false) {
         self.icon = icon
         self.text = text
         self.action = action
-        self.keyboardShortcut = keyboardShortcut
+        self.isRefreshing = isRefreshing
     }
     
     var body: some View {
         Button(action: action) {
             HStack(spacing: 2) {
-                Image(systemName: icon)
+                if icon == "arrow.clockwise" && isRefreshing {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        // .rotationEffect(.degrees(isRefreshing ? 360 : 0))
+                        // .animation(isRefreshing ? Animation.linear(duration: 1.0).repeatForever(autoreverses: false) : .default, value: isRefreshing)
+                } else {
+                    Image(systemName: icon)
+                }
                 Text(text)
                     .font(.callout)
             }
         }
         .buttonStyle(LinkButtonStyle())
-        .if(keyboardShortcut != nil) { view in
-            view.keyboardShortcut(keyboardShortcut!)
-        }
     }
 }
 
@@ -299,7 +310,6 @@ struct MoreMenuButton: View {
             Button(action: onQuit) {
                 Label("Quit", systemImage: "power")
             }
-            .keyboardShortcut("q")
         } label: {
             HStack(spacing: 2) {
                 Image(systemName: "ellipsis.circle")
@@ -359,6 +369,7 @@ struct TrainPopoverView_Previews: PreviewProvider {
             fromStationName: "Tel Aviv - Savidor",
             toStationName: "Haifa - Hof HaCarmel",
             preferences: StationPreferences.defaultPreferences,
+            isRefreshing: false,
             onReverseDirection: {},
             onRefresh: {},
             onPreferences: {},
