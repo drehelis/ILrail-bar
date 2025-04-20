@@ -19,21 +19,6 @@ struct AboutView: View {
             ) {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 5) {
-                        Text("(0)")
-                            .fontWeight(.medium)
-                        Text("- No train changes required")
-                    }
-                    
-                    HStack(spacing: 5) {
-                        Text("(1+)")
-                            .fontWeight(.medium)
-                        Text("- Train changes required")
-                    }
-
-                    Divider()
-                        .padding(.vertical, 4)
-
-                    HStack(spacing: 5) {
                         Text("[minutes]")
                             .fontWeight(.medium)
                         Text("- Travel time")
@@ -46,6 +31,21 @@ struct AboutView: View {
                         Text("(#)")
                             .fontWeight(.medium)
                         Text("- Train number")
+                    }
+
+                    Divider()
+                        .padding(.vertical, 4)
+
+                    HStack(spacing: 5) {
+                        Text("(0)")
+                            .fontWeight(.medium)
+                        Text("- No train changes required")
+                    }
+                    
+                    HStack(spacing: 5) {
+                        Text("(1+)")
+                            .fontWeight(.medium)
+                        Text("- Train changes required")
                     }
                 }
                 .padding(8)

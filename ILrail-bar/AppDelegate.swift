@@ -355,7 +355,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
     
     @objc private func manualRefresh() {
         logInfo("Refresh request by user")
-        closePopover()
         fetchTrainSchedule(showLoading: true)
     }
     

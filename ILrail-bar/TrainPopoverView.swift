@@ -148,10 +148,10 @@ struct TrainInfoRow: View {
                         
                         Text(timeString(for: train.arrivalTime))
                             .fontWeight(.medium)
+                            .foregroundColor(timeUntilDepartureColor())
                         
                         Spacer(minLength: 4)
                         
-                        // Combined information in a single row
                         Group {
                             Text("[\(travelTimeString())]")
                                 .font(.caption)
@@ -191,7 +191,6 @@ struct TrainInfoRow: View {
             .padding(.vertical, 5)
         }
         .buttonStyle(PlainButtonStyle())
-        .help("Click to copy train info to clipboard")
     }
     
     private func timeUntilDepartureColor() -> Color {
@@ -243,7 +242,6 @@ struct HeaderView: View {
         Button(action: onReverseDirection) {
             HStack {
                 Text("\(fromStationName) → \(toStationName)")
-                    .font(.headline)
                     .lineLimit(1)
                 Spacer()
                 Image(systemName: "arrow.left.arrow.right")
@@ -254,7 +252,7 @@ struct HeaderView: View {
         .buttonStyle(PlainButtonStyle())
         .padding([.horizontal, .top])
         .padding(.bottom, 5)
-        .help("Click to reverse direction")
+        .help("\(fromStationName) → \(toStationName)")
     }
 }
 
@@ -328,7 +326,7 @@ extension View {
 struct LinkButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundColor(configuration.isPressed ? .accentColor.opacity(0.7) : .accentColor)
+            .foregroundColor(configuration.isPressed ? .secondary.opacity(0.7) : .primary)
             .opacity(configuration.isPressed ? 0.7 : 1.0)
     }
 }
