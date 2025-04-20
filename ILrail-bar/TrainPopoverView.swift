@@ -283,8 +283,6 @@ struct LinkButton: View {
             HStack(spacing: 2) {
                 if icon == "arrow.clockwise" && isRefreshing {
                     Image(systemName: "arrow.triangle.2.circlepath")
-                        // .rotationEffect(.degrees(isRefreshing ? 360 : 0))
-                        // .animation(isRefreshing ? Animation.linear(duration: 1.0).repeatForever(autoreverses: false) : .default, value: isRefreshing)
                 } else {
                     Image(systemName: icon)
                 }
