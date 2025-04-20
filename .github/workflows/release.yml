@@ -33,7 +33,29 @@ jobs:
 
           [[ -z "$VERSION" ]] && VERSION=$(utils/increment_version.sh -M 0.0.0)
 
-          NEW_TAG="v$(utils/increment_version.sh -p $VERSION)"
+          BUMP_TYPE="-p"  # Default to patch
+
+          BUMP_LINE=$(grep -E "<\!-- BUMP:(patch|minor|major) -->" CHANGELOG.md | head -n 1)
+            
+          case "$BUMP_LINE" in
+            *"BUMP:major"*)
+              BUMP_TYPE="-M"
+              echo "Triggering MAJOR version bump from CHANGELOG"
+              ;;
+            *"BUMP:minor"*)
+              BUMP_TYPE="-m"
+              echo "Triggering MINOR version bump from CHANGELOG"
+              ;;
+            *"BUMP:patch"*)
+              BUMP_TYPE="-p"
+              echo "Triggering PATCH version bump from CHANGELOG"
+              ;;
+            *)
+              echo "No valid bump type found in CHANGELOG.md, defaulting to PATCH"
+              ;;
+          esac
+
+          NEW_TAG="v$(utils/increment_version.sh $BUMP_TYPE $VERSION)"
 
           echo "Latest tag: $LATEST_TAG"
           echo "New tag: $NEW_TAG"
