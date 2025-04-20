@@ -17,7 +17,9 @@ struct ErrorPopoverView: View {
             HeaderView(
                 fromStationName: fromStationName, 
                 toStationName: toStationName, 
-                onReverseDirection: onReverseDirection
+                onReverseDirection: onReverseDirection,
+                isFromCache: false,
+                cacheAgeMinutes: nil
             )
             
             Divider()

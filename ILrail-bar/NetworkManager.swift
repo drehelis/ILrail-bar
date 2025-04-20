@@ -18,6 +18,39 @@ class NetworkManager {
         case noData
         case decodingError
         case serverError(String)
+        case cacheError
+    }
+    
+    private struct CacheKeys {
+        static let stationsData = "cachedStationsData"
+        static let timetablePrefix = "cachedTimetableData_"
+    }
+    
+    // Generic cache manager function
+    private func cacheData(_ data: Data, forKey key: String) {
+        let cacheBundle: [String: Any] = [
+            "timestamp": Date().timeIntervalSince1970,
+            "data": data
+        ]
+        UserDefaults.standard.set(cacheBundle, forKey: key)
+        logDebug("Data cached successfully with key: \(key)")
+    }
+    
+    // Generic cache retrieval function
+    private func getCachedData(forKey key: String) -> (data: Data, ageInMinutes: Int)? {
+        if let cachedBundle = UserDefaults.standard.dictionary(forKey: key),
+           let cachedData = cachedBundle["data"] as? Data,
+           let timestamp = cachedBundle["timestamp"] as? TimeInterval {
+            let cacheAge = Date().timeIntervalSince1970 - timestamp
+            let minutes = Int(cacheAge / 60)
+            return (cachedData, minutes)
+        }
+        return nil
+    }
+    
+    // Function to get timetable cache key
+    private func getTimetableCacheKey(fromStation: String, toStation: String) -> String {
+        return "\(CacheKeys.timetablePrefix)\(fromStation)_\(toStation)"
     }
     
     func fetchStations(completion: @escaping (Result<[RemoteStation], NetworkError>) -> Void) {
@@ -40,31 +73,11 @@ class NetworkManager {
         request.addValue(madeUpUserAgent, forHTTPHeaderField: "User-Agent")
         request.addValue(apiKey, forHTTPHeaderField: "ocp-apim-subscription-key")
         
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            if let error = error {
-                logError("Error fetching stations: \(error.localizedDescription)")
-                completion(.failure(.serverError(error.localizedDescription)))
-                return
-            }
-            
-            guard let data = data else {
-                completion(.failure(.noData))
-                return
-            }
-            
-            if let httpResponse = response as? HTTPURLResponse, !(200...299).contains(httpResponse.statusCode) {
-                let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown server error"
-                completion(.failure(.serverError(errorMessage)))
-                return
-            }
-            
+        // Define a function to process station data
+        let processStationData = { (data: Data) -> [RemoteStation] in
             do {
                 let response = try JSONDecoder().decode(StationResponse.self, from: data)
-                
-                // Cache the data for future use
-                UserDefaults.standard.set(data, forKey: "cachedStationsData")
-                
-                completion(.success(response.result))
+                return response.result
             } catch {
                 logError("Error decoding stations: \(error.localizedDescription)")
                 
@@ -81,6 +94,48 @@ class NetworkManager {
                     logError("Failed to parse JSON: \(error.localizedDescription)")
                 }
                 
+                throw NetworkError.decodingError
+            }
+        }
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                logError("Error fetching stations: \(error.localizedDescription)")
+                
+                // Try to use cached data if available
+                if let cachedDataInfo = self.getCachedData(forKey: CacheKeys.stationsData) {
+                    do {
+                        let stations = try processStationData(cachedDataInfo.data)
+                        logInfo("Using cached stations data from \(cachedDataInfo.ageInMinutes) minutes ago")
+                        completion(.success(stations))
+                    } catch {
+                        completion(.failure(.cacheError))
+                    }
+                } else {
+                    completion(.failure(.serverError(error.localizedDescription)))
+                }
+                return
+            }
+            
+            guard let data = data else {
+                completion(.failure(.noData))
+                return
+            }
+            
+            if let httpResponse = response as? HTTPURLResponse, !(200...299).contains(httpResponse.statusCode) {
+                let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown server error"
+                completion(.failure(.serverError(errorMessage)))
+                return
+            }
+            
+            do {
+                let stations = try processStationData(data)
+                
+                // Cache the data for future use
+                self.cacheData(data, forKey: CacheKeys.stationsData)
+                
+                completion(.success(stations))
+            } catch {
                 completion(.failure(.decodingError))
             }
         }.resume()
@@ -119,23 +174,11 @@ class NetworkManager {
         request.addValue(madeUpUserAgent, forHTTPHeaderField: "User-Agent")
         request.addValue(apiKey, forHTTPHeaderField: "ocp-apim-subscription-key")
         
-        URLSession.shared.dataTask(with: request) { data, response, error in            
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
-            
-            guard let data = data else {
-                completion(.failure(NetworkError.noData))
-                return
-            }
-            
-            if let httpResponse = response as? HTTPURLResponse, !(200...299).contains(httpResponse.statusCode) {
-                let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown server error"
-                completion(.failure(NetworkError.serverError(errorMessage)))
-                return
-            }
-            
+        // Generate a cache key based on from/to stations
+        let cacheKey = getTimetableCacheKey(fromStation: preferences.fromStation, toStation: preferences.toStation)
+        
+        // Create a function to process API response data
+        let processData = { (data: Data, isFromCache: Bool, cacheAgeMinutes: Int?) -> [TrainSchedule] in
             do {
                 let decoder = JSONDecoder()
                 decoder.dateDecodingStrategy = .custom { decoder in
@@ -156,9 +199,7 @@ class NetworkManager {
                 }
                 
                 let response = try decoder.decode(APIResponse.self, from: data)
-
                 let now = Date()
-
                 var trainSchedules: [TrainSchedule] = []
                 
                 for travel in response.result.travels {
@@ -183,7 +224,9 @@ class NetworkManager {
                             fromStationName: firstTrainData.fromStationName ?? preferences.fromStation,
                             toStationName: travel.trains.last?.toStationName ?? firstTrainData.toStationName ?? preferences.toStation,
                             trainChanges: trainChanges,
-                            allTrainNumbers: allTrainNumbers
+                            allTrainNumbers: allTrainNumbers,
+                            isFromCache: isFromCache,
+                            cacheAgeMinutes: cacheAgeMinutes
                         )
                         trainSchedules.append(schedule)
                         
@@ -191,7 +234,6 @@ class NetworkManager {
                     }
                 }
                 
-                               
                 // Filter out trains that have already departed with 1-minute buffer
                 // Sometimes API time and local time can be slightly off
                 let upcomingTrains = trainSchedules.filter { 
@@ -209,10 +251,52 @@ class NetworkManager {
                     logDebug("Train #\(train.trainNumber): from: \(train.fromStationName), to: \(train.toStationName), departs at \(departureString)")
                 }
                 
-                completion(.success(sortedTrains))
+                return sortedTrains
             } catch {
                 logError("Decoding error: \(error)")
-                completion(.failure(NetworkError.decodingError))
+                throw NetworkError.decodingError
+            }
+        }
+        
+        // Try to use cached data first, especially if offline
+        URLSession.shared.dataTask(with: request) { data, response, error in            
+            if let error = error {
+                logWarning("Network error: \(error.localizedDescription). Attempting to use cached data.")
+                
+                // Try to use cached data instead
+                if let cachedDataInfo = self.getCachedData(forKey: cacheKey) {
+                    do {
+                        let cachedTrains = try processData(cachedDataInfo.data, true, cachedDataInfo.ageInMinutes)
+                        logInfo("Using cached timetable data from \(cachedDataInfo.ageInMinutes) minutes ago")
+                        completion(.success(cachedTrains))
+                    } catch {
+                        completion(.failure(error))
+                    }
+                } else {
+                    completion(.failure(error))
+                }
+                return
+            }
+            
+            guard let data = data else {
+                completion(.failure(NetworkError.noData))
+                return
+            }
+            
+            if let httpResponse = response as? HTTPURLResponse, !(200...299).contains(httpResponse.statusCode) {
+                let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown server error"
+                completion(.failure(NetworkError.serverError(errorMessage)))
+                return
+            }
+            
+            // Process the fresh data from the network
+            do {
+                let sortedTrains = try processData(data, false, nil)
+                // Cache the data for future use
+                self.cacheData(data, forKey: cacheKey)
+                completion(.success(sortedTrains))
+            } catch {
+                completion(.failure(error))
             }
         }.resume()
     }

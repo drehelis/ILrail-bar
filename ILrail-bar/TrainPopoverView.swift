@@ -46,7 +46,9 @@ struct TrainPopoverView: View {
             HeaderView(
                 fromStationName: fromStationName,
                 toStationName: toStationName,
-                onReverseDirection: onReverseDirection
+                onReverseDirection: onReverseDirection,
+                isFromCache: trainSchedules.first?.isFromCache ?? false,
+                cacheAgeMinutes: trainSchedules.first?.cacheAgeMinutes
             )
             
             Divider()
@@ -55,11 +57,15 @@ struct TrainPopoverView: View {
             if !trainSchedules.isEmpty {
                 // Remove ScrollView entirely and just use a VStack
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Next:")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal)
-                        .padding(.vertical, 5)
+                    HStack {
+                        Text("Next:")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        
+                        Spacer()
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 5)
                         
                     TrainInfoRow(
                         train: trainSchedules[0],
@@ -245,22 +251,40 @@ struct HeaderView: View {
     let fromStationName: String
     let toStationName: String
     let onReverseDirection: () -> Void
+    let isFromCache: Bool
+    let cacheAgeMinutes: Int?
     
     var body: some View {
-        Button(action: onReverseDirection) {
-            HStack {
-                Text("\(fromStationName) → \(toStationName)")
-                    .lineLimit(1)
-                Spacer()
-                Image(systemName: "arrow.left.arrow.right")
-                    .font(.caption)
+        VStack(spacing: 3) {
+            Button(action: onReverseDirection) {
+                HStack {
+                    Text("\(fromStationName) → \(toStationName)")
+                        .lineLimit(1)
+                    Spacer()
+                    Image(systemName: "arrow.left.arrow.right")
+                        .font(.caption)
+                }
+                .contentShape(Rectangle())
             }
-            .contentShape(Rectangle())
+            .buttonStyle(PlainButtonStyle())
+            .help("\(fromStationName) → \(toStationName)")
+            
+            // Show cache indicator if data is from cache
+            if isFromCache, let cacheAge = cacheAgeMinutes {
+                HStack(spacing: 3) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.caption2)
+                        .foregroundColor(.secondary.opacity(0.8))
+                    
+                    Text("Fetched \(cacheAge)m ago")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary.opacity(0.8))
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            }
         }
-        .buttonStyle(PlainButtonStyle())
         .padding([.horizontal, .top])
         .padding(.bottom, 5)
-        .help("\(fromStationName) → \(toStationName)")
     }
 }
 
@@ -351,7 +375,9 @@ struct TrainPopoverView_Previews: PreviewProvider {
                     fromStationName: "Tel Aviv - Savidor",
                     toStationName: "Haifa - Hof HaCarmel",
                     trainChanges: 0,
-                    allTrainNumbers: ["123"]
+                    allTrainNumbers: ["123"],
+                    isFromCache: true,
+                    cacheAgeMinutes: 15
                 ),
                 TrainSchedule(
                     trainNumber: "456",
@@ -361,7 +387,9 @@ struct TrainPopoverView_Previews: PreviewProvider {
                     fromStationName: "Tel Aviv - Savidor",
                     toStationName: "Haifa - Hof HaCarmel",
                     trainChanges: 1,
-                    allTrainNumbers: ["456", "789"]
+                    allTrainNumbers: ["456", "789"],
+                    isFromCache: true,
+                    cacheAgeMinutes: 15
                 )
             ],
             fromStationName: "Tel Aviv - Savidor",
