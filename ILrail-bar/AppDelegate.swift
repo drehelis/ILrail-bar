@@ -18,7 +18,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
     private var isRefreshing: Bool = false
     
     private enum Constants {
-        static let aboutTitle = "ILrail-bar"
+        static let aboutTitle = "ILrail-bar v%%VERSION%%"
         static let menuBarErrorText = " Error"
         static let menuBarNoResultsText = " No trains"
         static let noTrainFoundMessage = "No trains found for route"
@@ -387,10 +387,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
     private func updateStatusBarWithTrain(_ train: TrainSchedule) {
         if let button = statusItem.button {
             let departureTimeString = DateFormatters.timeFormatter.string(from: train.departureTime)
-            
             let timeUntilDepartureSeconds = train.departureTime.timeIntervalSinceNow
-            let timeUntilDepartureMinutes = timeUntilDepartureSeconds / 60
-            
+
             let preferences = PreferencesManager.shared.preferences
             let redTimeUntilDeparture = TimeInterval(preferences.redAlertMinutes * 60)
             let blueTimeUntilDeparture = TimeInterval(preferences.blueAlertMinutes * 60)

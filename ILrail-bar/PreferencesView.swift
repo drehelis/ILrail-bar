@@ -95,7 +95,7 @@ struct SearchableStationPicker: View {
                 .animation(.easeInOut(duration: 0.2), value: isExpanded)
             }
         }
-        .onChange(of: isExpanded) { expanded in
+        .onChange(of: isExpanded) { _, expanded in
             if !expanded {
                 // Reset search when closing dropdown
                 searchText = ""

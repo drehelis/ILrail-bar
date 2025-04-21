@@ -12,6 +12,16 @@ BUMP:minor - Increases the minor version (0.x.0)
 BUMP:major - Increases the major version (x.0.0)
 -->
 
+<!-- BUMP:minor -->
+## v2.1.0 - 2024-04-21
+### Changed
+- Preferences view is now also a Popover
+- feat: Ability to search stations as the drop-down menu is clumsy
+- Use `monospacedDigit` font for better UI experience
+
+### Deprecated
+- Replaced deprecetaed functions 
+
 <!-- BUMP:major -->
 ## v2.0.0 - 2024-04-21
 ### Changed
