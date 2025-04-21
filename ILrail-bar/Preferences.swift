@@ -119,6 +119,7 @@ struct Station: Identifiable, Hashable {
     }
     
     private static func fetchLatestStationsData(_ completion: @escaping ([Station]?) -> Void) {
+        let startTime = Date()
         NetworkManager.shared.fetchStations { result in
             switch result {
             case .success(let remoteStations):
@@ -128,7 +129,8 @@ struct Station: Identifiable, Hashable {
                 
                 // Verify we got stations
                 if !stations.isEmpty {
-                    logDebug("Successfully loaded \(stations.count) stations")
+                    let timeElapsed = Date().timeIntervalSince(startTime)
+                    logDebug("Successfully loaded \(stations.count) stations in \(String(format: "%.2f", timeElapsed)) seconds")
                     
                     // Update the shared list and notify observers
                     setStations(stations)
@@ -144,7 +146,6 @@ struct Station: Identifiable, Hashable {
                 
             case .failure(let error):
                 logError("Error fetching stations: \(error)")
-                // Use default stations if fetching fails
                 logWarning("Using default stations as fetching failed")
                 setStations(defaultStations)
                 NotificationCenter.default.post(name: .stationsLoaded, object: nil)

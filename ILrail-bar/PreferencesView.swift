@@ -1,6 +1,109 @@
 import SwiftUI
 import ServiceManagement
 
+struct SearchableStationPicker: View {
+    let label: String
+    let stations: [Station]
+    @Binding var selectedStationId: String
+    @State private var isExpanded: Bool = false
+    @State private var searchText: String = ""
+    
+    var filteredStations: [Station] {
+        if searchText.isEmpty {
+            return stations
+        } else {
+            return stations.filter { station in
+                station.name.lowercased().contains(searchText.lowercased())
+            }
+        }
+    }
+    
+    var selectedStationName: String {
+        stations.first(where: { $0.id == selectedStationId })?.name ?? "Select station"
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center) {
+                Text(label)
+                    .frame(width: 150, alignment: .leading)
+                
+                Button(action: {
+                    isExpanded.toggle()
+                }) {
+                    HStack {
+                        Text(selectedStationName)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        Spacer()
+                        Image(systemName: "chevron.down")
+                            .font(.caption)
+                            .rotationEffect(isExpanded ? .degrees(180) : .degrees(0))
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .cornerRadius(4)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+                .frame(maxWidth: .infinity)
+            }
+            
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 0) {
+                    TextField("Search", text: $searchText)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .padding(.vertical, 6)
+    
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(filteredStations) { station in
+                                Button(action: {
+                                    selectedStationId = station.id
+                                    isExpanded = false
+                                    searchText = ""
+                                }) {
+                                    Text(station.name)
+                                        .foregroundColor(selectedStationId == station.id ? .accentColor : Color.primary)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 6)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                
+                                if station.id != filteredStations.last?.id {
+                                    Divider()
+                                }
+                            }
+                        }
+                    }
+                    .frame(height: min(300, CGFloat(filteredStations.count * 30)))
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .cornerRadius(4)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                    )
+                }
+                .frame(maxWidth: .infinity)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+                .animation(.easeInOut(duration: 0.2), value: isExpanded)
+            }
+        }
+        .onChange(of: isExpanded) { expanded in
+            if !expanded {
+                // Reset search when closing dropdown
+                searchText = ""
+            }
+        }
+    }
+}
+
 struct PreferencesView: View {
     @State private var selectedFromStation: String
     @State private var selectedToStation: String
@@ -9,14 +112,14 @@ struct PreferencesView: View {
     @State private var redAlertMinutes: Int
     @State private var blueAlertMinutes: Int
     @State private var refreshInterval: Int
-    @State private var isPresented: Bool = true
     @State private var stations: [Station] = Station.allStations
     @State private var isLoading: Bool = false
     
-    // Reference to the window so we can close it manually
-    var window: NSWindow?
+    // Callback functions for popover actions
+    let onSave: () -> Void
+    let onCancel: () -> Void
     
-    init(window: NSWindow? = nil) {
+    init(onSave: @escaping () -> Void = {}, onCancel: @escaping () -> Void = {}) {
         let preferences = PreferencesManager.shared.preferences
         _selectedFromStation = State(initialValue: preferences.fromStation)
         _selectedToStation = State(initialValue: preferences.toStation)
@@ -25,7 +128,8 @@ struct PreferencesView: View {
         _redAlertMinutes = State(initialValue: preferences.redAlertMinutes)
         _blueAlertMinutes = State(initialValue: preferences.blueAlertMinutes)
         _refreshInterval = State(initialValue: preferences.refreshInterval)
-        self.window = window
+        self.onSave = onSave
+        self.onCancel = onCancel
     }
     
     var body: some View {
@@ -47,31 +151,17 @@ struct PreferencesView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     
-                    HStack(alignment: .center) {
-                        Text("Departure Station")
-                            .frame(width: 150, alignment: .leading)
-                        
-                        Picker("", selection: $selectedFromStation) {
-                            ForEach(stations) { station in
-                                Text("\(station.name)").tag(station.id)
-                            }
-                        }
-                        .pickerStyle(PopUpButtonPickerStyle())
-                        .frame(maxWidth: .infinity)
-                    }
+                    SearchableStationPicker(
+                        label: "Departure Station",
+                        stations: stations,
+                        selectedStationId: $selectedFromStation
+                    )
                     
-                    HStack(alignment: .center) {
-                        Text("Arrival Station")
-                            .frame(width: 150, alignment: .leading)
-                        
-                        Picker("", selection: $selectedToStation) {
-                            ForEach(stations) { station in
-                                Text("\(station.name)").tag(station.id)
-                            }
-                        }
-                        .pickerStyle(PopUpButtonPickerStyle())
-                        .frame(maxWidth: .infinity)
-                    }
+                    SearchableStationPicker(
+                        label: "Arrival Station",
+                        stations: stations,
+                        selectedStationId: $selectedToStation
+                    )
                     
                     HStack(alignment: .center) {
                         Text("Upcoming Items")
@@ -152,12 +242,9 @@ struct PreferencesView: View {
                 .padding(.horizontal, 20)
             }
             
-            Spacer()
-            
-            // Bottom buttons with consistent spacing
             HStack(spacing: 20) {
                 Button("Cancel") {
-                    closeWindow()
+                    onCancel()
                 }
                 .buttonStyle(.bordered)
                 .frame(width: 100)
@@ -180,16 +267,19 @@ struct PreferencesView: View {
                     // Notify the app to refresh train schedules with new preferences
                     NotificationCenter.default.post(name: .reloadPreferencesChanged, object: nil)
                     
-                    closeWindow()
+                    onSave()
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 .frame(width: 100)
                 .disabled(isLoading)
             }
-            .frame(maxWidth: .infinity)  // This ensures the HStack takes the full width
-            .padding(.bottom, 20)
+            .frame(maxWidth: .infinity)
+            .padding()
         }
-        .frame(width: 400, height: 350) // Adjusted height since we removed the title
+        .animation(.easeInOut, value: isLoading)
+        .frame(width: 400, height: isLoading ? 200 : nil)
+        .fixedSize(horizontal: true, vertical: true)
+        .background(Color(NSColor.windowBackgroundColor))
         .onAppear {
             loadStations()
         }
@@ -241,10 +331,6 @@ struct PreferencesView: View {
                 }
             }
         }
-    }
-    
-    private func closeWindow() {
-        window?.close()
     }
     
     private func updateLaunchAtLogin(_ enabled: Bool) {

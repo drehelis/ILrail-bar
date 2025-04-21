@@ -55,7 +55,6 @@ struct TrainPopoverView: View {
             
             // Next train section
             if !trainSchedules.isEmpty {
-                // Remove ScrollView entirely and just use a VStack
                 VStack(alignment: .leading, spacing: 0) {
                     HStack {
                         Text("Next:")
@@ -266,10 +265,9 @@ struct HeaderView: View {
                 }
                 .contentShape(Rectangle())
             }
-            .buttonStyle(PlainButtonStyle())
+            .buttonStyle(AccessoryBarButtonStyle())
             .help("\(fromStationName) → \(toStationName)")
             
-            // Show cache indicator if data is from cache
             if isFromCache, let cacheAge = cacheAgeMinutes {
                 HStack(spacing: 3) {
                     Image(systemName: "clock.arrow.circlepath")
@@ -283,8 +281,7 @@ struct HeaderView: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
-        .padding([.horizontal, .top])
-        .padding(.bottom, 5)
+        .padding(EdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 0))
     }
 }
 

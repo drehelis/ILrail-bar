@@ -4,11 +4,13 @@ import Cocoa
 class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverDelegate {
     private var statusItem: NSStatusItem!
     private var popover: NSPopover!
+    private var preferencesPopover: NSPopover!
     private var trainScheduleTimer: Timer?
     private let networkManager = NetworkManager()
     private var preferencesWindow: NSWindow?
     private var aboutWindow: NSWindow?
     private var eventMonitor: EventMonitor?
+    private var preferencesEventMonitor: EventMonitor?
     
     // Current train schedules and error state
     private var currentTrainSchedules: [TrainSchedule] = []
@@ -74,10 +76,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
         // Fetch station data as soon as the app starts
         fetchStationData()
         
-        // Initialize popover
         popover = NSPopover()
         popover.behavior = .transient
         popover.delegate = self
+        preferencesPopover = NSPopover()
+        preferencesPopover.behavior = .transient
+        preferencesPopover.delegate = self
         
         setupStatusItem()
         fetchTrainSchedule()
@@ -105,10 +109,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             }
         }
         eventMonitor?.start()
+        
+        // Setup event monitor for preferences popover
+        preferencesEventMonitor = EventMonitor(mask: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            if let self = self, self.preferencesPopover.isShown {
+                self.closePreferencesPopover()
+            }
+        }
+        preferencesEventMonitor?.start()
     }
     
     func applicationWillTerminate(_ notification: Notification) {
         eventMonitor?.stop()
+        preferencesEventMonitor?.stop()
     }
     
     @objc private func timerRefresh() {
@@ -138,7 +151,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
         if let button = statusItem.button {
-            // Use a train icon with better styling
             let tramImage = NSImage(systemSymbolName: "tram.fill", accessibilityDescription: "Train")
             tramImage?.isTemplate = true  // Ensures proper appearance in dark/light modes
             button.image = tramImage
@@ -254,26 +266,34 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
     
     @objc func showPreferences(_ sender: Any? = nil) {
         closePopover()
-        
-        // Create a new hosting view with an instance of PreferencesView
-        // Pass nil for the window as we'll set it properly after creating it
-        let preferencesView = PreferencesView()
-        let hostingView = NSHostingView(rootView: preferencesView)
-        
-        createAndShowWindow(
-            size: NSSize(width: 400, height: 350),
-            title: "Preferences",
-            styleMask: [.titled, .closable, .miniaturizable],
-            view: hostingView,
-            storeIn: &preferencesWindow
-        )
-        
-        // Now update the view with the correct window reference if needed
-        if let window = preferencesWindow {
-            // Access the underlying PreferencesView and update its window property
-            let updatedView = PreferencesView(window: window)
-            hostingView.rootView = updatedView
+        showPreferencesPopover()
+    }
+    
+    private func showPreferencesPopover() {
+        if let button = statusItem.button {
+            // Create the preferences view with callbacks for save/cancel
+            let preferencesView = PreferencesView(
+                onSave: { [weak self] in
+                    self?.closePreferencesPopover()
+                },
+                onCancel: { [weak self] in
+                    self?.closePreferencesPopover()
+                }
+            )
+            
+            // Set the view in the popover
+            preferencesPopover.contentViewController = NSHostingController(rootView: preferencesView)
+            
+            // Show the popover
+            preferencesPopover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            
+            // Start the event monitor if it's not already running
+            preferencesEventMonitor?.start()
         }
+    }
+    
+    private func closePreferencesPopover() {
+        preferencesPopover.performClose(nil)
     }
     
     @objc private func reloadPreferencesChanged() {
@@ -370,28 +390,31 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             
             let timeUntilDepartureSeconds = train.departureTime.timeIntervalSinceNow
             let timeUntilDepartureMinutes = timeUntilDepartureSeconds / 60
-            logDebug("Time until departure: \(timeUntilDepartureMinutes) minutes")
             
             let preferences = PreferencesManager.shared.preferences
             let redTimeUntilDeparture = TimeInterval(preferences.redAlertMinutes * 60)
             let blueTimeUntilDeparture = TimeInterval(preferences.blueAlertMinutes * 60)
             
+            // Use a monospaced font to ensure consistent width
+            let font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+            
+            var attributes: [NSAttributedString.Key: Any] = [
+                .font: font
+            ]
+            
             if timeUntilDepartureSeconds <= redTimeUntilDeparture {
-                button.attributedTitle = NSAttributedString(
-                    string: " " + departureTimeString,
-                    attributes: [NSAttributedString.Key.foregroundColor: NSColor.systemRed]
-                )
+                attributes[.foregroundColor] = NSColor.systemRed
             } else if timeUntilDepartureSeconds <= blueTimeUntilDeparture {
-                button.attributedTitle = NSAttributedString(
-                    string: " " + departureTimeString,
-                    attributes: [NSAttributedString.Key.foregroundColor: NSColor.systemBlue]
-                )
+                attributes[.foregroundColor] = NSColor.systemBlue
             } else {
-                button.attributedTitle = NSAttributedString(
-                    string: " " + departureTimeString,
-                    attributes: [NSAttributedString.Key.foregroundColor: NSColor.labelColor]
-                )
+                attributes[.foregroundColor] = NSColor.labelColor
             }
+            
+            // Use a consistent width for the text
+            button.attributedTitle = NSAttributedString(
+                string: departureTimeString,
+                attributes: attributes
+            )
         }
     }
     
@@ -400,9 +423,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             let menubarText = message == Constants.noTrainFoundMessage ? Constants.menuBarNoResultsText : Constants.menuBarErrorText
             let textColor = message == Constants.noTrainFoundMessage ? NSColor.labelColor : NSColor.systemRed
             
+            // Use the same monospaced font for consistency
+            let font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+            
             button.attributedTitle = NSAttributedString(
                 string: menubarText,
-                attributes: [NSAttributedString.Key.foregroundColor: textColor]
+                attributes: [
+                    NSAttributedString.Key.foregroundColor: textColor,
+                    NSAttributedString.Key.font: font
+                ]
             )
         }
     }

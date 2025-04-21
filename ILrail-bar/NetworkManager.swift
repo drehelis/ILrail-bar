@@ -27,6 +27,7 @@ class NetworkManager {
     }
     
     // Generic cache manager function
+    // Stored in ~/Library/Containers/il.co.liar.ILrail-bar/Data/Library/Preferences/il.co.liar.ILrail-bar.plist
     private func cacheData(_ data: Data, forKey key: String) {
         let cacheBundle: [String: Any] = [
             "timestamp": Date().timeIntervalSince1970,
@@ -229,8 +230,6 @@ class NetworkManager {
                             cacheAgeMinutes: cacheAgeMinutes
                         )
                         trainSchedules.append(schedule)
-                        
-                        logDebug("Adding journey with \(trainChanges) switches: Train #\(trainNumberString) from \(firstTrainData.fromStationName ?? "unknown") to \(travel.trains.last?.toStationName ?? "unknown")")
                     }
                 }
                 
