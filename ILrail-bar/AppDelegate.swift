@@ -21,9 +21,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
     private var isRefreshing: Bool = false
     
     private enum Constants {
-        static let aboutTitle = "ILrail-bar v%%VERSION%%"
-        static let menuBarErrorText = " Error"
-        static let menuBarNoResultsText = " No trains"
+        static let aboutTitle = "ILrail-bar %%VERSION%%"
+        static let menuBarErrorText = "Error"
+        static let menuBarNoResultsText = "No trains"
         static let noTrainFoundMessage = "No trains found for route"
     }
         
