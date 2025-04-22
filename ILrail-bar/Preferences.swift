@@ -5,12 +5,12 @@ struct StationPreferences: Codable {
     var toStation: String
     var upcomingItemsCount: Int
     var launchAtLogin: Bool
-    var redAlertMinutes: Int // Time in minutes for red alert (urgent)
-    var blueAlertMinutes: Int // Time in minutes for blue alert (approaching)
-    var refreshInterval: Int // Time in seconds for refresh interval
-    var activeDays: [Bool] // Array of 7 booleans representing days of week (Sunday to Saturday)
-    var activeStartHour: Int // Hour (0-23) to start being active
-    var activeEndHour: Int // Hour (0-23) to end being active
+    var redAlertMinutes: Int
+    var blueAlertMinutes: Int
+    var refreshInterval: Int
+    var activeDays: [Bool]
+    var activeStartHour: Int
+    var activeEndHour: Int
     
     static let defaultPreferences = StationPreferences(
         fromStation: "3700",

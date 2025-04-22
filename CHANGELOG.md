@@ -13,6 +13,15 @@ BUMP:major - Increases the major version (x.0.0)
 -->
 
 <!-- BUMP:minor -->
+## v2.2.0 - 2024-04-22
+### Changed
+- feat: Set activity for specific days / hours
+- Few cosmetic changes, nothing too fancy
+
+### Fixed
+- A bug where Popover view was not getting refreshed according to schedule
+  
+<!-- BUMP:minor -->
 ## v2.1.0 - 2024-04-21
 ### Changed
 - Preferences view is now also a Popover
