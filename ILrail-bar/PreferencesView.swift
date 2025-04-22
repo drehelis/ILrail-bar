@@ -112,6 +112,9 @@ struct PreferencesView: View {
     @State private var redAlertMinutes: Int
     @State private var blueAlertMinutes: Int
     @State private var refreshInterval: Int
+    @State private var activeDays: [Bool]
+    @State private var activeStartHour: Int
+    @State private var activeEndHour: Int
     @State private var stations: [Station] = Station.allStations
     @State private var isLoading: Bool = false
     
@@ -128,6 +131,9 @@ struct PreferencesView: View {
         _redAlertMinutes = State(initialValue: preferences.redAlertMinutes)
         _blueAlertMinutes = State(initialValue: preferences.blueAlertMinutes)
         _refreshInterval = State(initialValue: preferences.refreshInterval)
+        _activeDays = State(initialValue: preferences.activeDays)
+        _activeStartHour = State(initialValue: preferences.activeStartHour)
+        _activeEndHour = State(initialValue: preferences.activeEndHour)
         self.onSave = onSave
         self.onCancel = onCancel
     }
@@ -238,6 +244,61 @@ struct PreferencesView: View {
                         .pickerStyle(PopUpButtonPickerStyle())
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    
+                    Divider()
+                    
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Active on days:")
+                            .frame(width: 150, alignment: .leading)
+                        
+                        HStack(spacing: 2) {
+                            ForEach(0..<7) { index in
+                                let day = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][index]
+                                Button(action: {
+                                    activeDays[index].toggle()
+                                }) {
+                                    Text(day)
+                                        .frame(width: 40, height: 24)
+                                        .background(activeDays[index] ? Color.blue : Color(NSColor.controlBackgroundColor))
+                                        .foregroundColor(activeDays[index] ? .white : .primary)
+                                        .cornerRadius(12)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                                        )
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    
+                    HStack(alignment: .center) {
+                        Text("Active hours:")
+                            .frame(width: 150, alignment: .leading)
+                        
+                        HStack(spacing: 5) {
+                            Picker("", selection: $activeStartHour) {
+                                ForEach(0..<24) { hour in
+                                    Text(formatHour(hour)).tag(hour)
+                                }
+                            }
+                            .frame(width: 100)
+                            .pickerStyle(PopUpButtonPickerStyle())
+                            
+                            Text("to")
+                            
+                            Picker("", selection: $activeEndHour) {
+                                ForEach(0..<24) { hour in
+                                    Text(formatHour(hour)).tag(hour)
+                                }
+                            }
+                            .frame(width: 100)
+                            .pickerStyle(PopUpButtonPickerStyle())
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
                 .padding(.horizontal, 20)
             }
@@ -258,7 +319,10 @@ struct PreferencesView: View {
                         launchAtLogin: launchAtLogin,
                         redAlertMinutes: redAlertMinutes,
                         blueAlertMinutes: blueAlertMinutes,
-                        refreshInterval: refreshInterval
+                        refreshInterval: refreshInterval,
+                        activeDays: activeDays,
+                        activeStartHour: activeStartHour,
+                        activeEndHour: activeEndHour
                     )
                     
                     // Configure launch at login
@@ -346,6 +410,13 @@ struct PreferencesView: View {
         } catch {
             logError("Failed to \(enabled ? "register" : "unregister") launch at login: \(error.localizedDescription)")
         }
+    }
+    
+    private func formatHour(_ hour: Int) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h a"
+        let date = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: Date())!
+        return formatter.string(from: date)
     }
 }
 
