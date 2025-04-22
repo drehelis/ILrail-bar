@@ -19,7 +19,7 @@ struct StationPreferences: Codable {
         launchAtLogin: false,
         redAlertMinutes: 15,
         blueAlertMinutes: 30,
-        refreshInterval: 300,
+        refreshInterval: 600,
         activeDays: [true, true, true, true, true, false, false], // All days active by default
         activeStartHour: 6, // 6 AM
         activeEndHour: 23 // 11 PM

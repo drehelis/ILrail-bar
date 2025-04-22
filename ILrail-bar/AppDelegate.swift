@@ -465,14 +465,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             return
         }
         
-        logInfo("Updating display without fetching new data")
-        
         // Find all trains that haven't departed yet
         let now = Date()
         let upcomingTrains = currentTrainSchedules.filter { $0.departureTime > now }
         
         // Update the current train schedules array to only include upcoming trains
         if upcomingTrains.count < currentTrainSchedules.count && !upcomingTrains.isEmpty {
+            logInfo("Updating display without fetching new data")
             currentTrainSchedules = upcomingTrains
         }
         
@@ -488,6 +487,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             
         } else if upcomingTrains.isEmpty && !currentTrainSchedules.isEmpty {
             // All trains have departed, show no trains message
+            logInfo("Updating display without fetching new data")
             currentTrainSchedules = []
             currentErrorMessage = Constants.noTrainFoundMessage
             updateStatusBarWithError(Constants.noTrainFoundMessage)
@@ -661,7 +661,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
         
         // Check if the current hour is within the active hours
         let hour = calendar.component(.hour, from: now)
-        let isInActiveHours = hour >= preferences.activeStartHour && hour < preferences.activeEndHour
+        let isInActiveHours = hour >= preferences.activeStartHour && hour <= preferences.activeEndHour
         
         return isInActiveHours
     }
