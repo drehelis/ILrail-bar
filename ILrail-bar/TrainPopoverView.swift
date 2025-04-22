@@ -141,6 +141,7 @@ struct TrainInfoRow: View {
     let blueAlertMinutes: Int
     
     @State private var isCopied: Bool = false
+    @State private var refreshID: UUID = UUID()
     
     var body: some View {
         Button(action: {
@@ -157,6 +158,7 @@ struct TrainInfoRow: View {
                             .font(.system(.body, design: .default).monospacedDigit())
                             .fontWeight(.medium)
                             .foregroundColor(timeUntilDepartureColor())
+                            .id("departure-\(refreshID)")
                         
                         Text("→")
                             .foregroundStyle(.secondary)
@@ -165,6 +167,7 @@ struct TrainInfoRow: View {
                             .font(.system(.body, design: .default).monospacedDigit())
                             .fontWeight(.medium)
                             .foregroundColor(timeUntilDepartureColor())
+                            .id("arrival-\(refreshID)")
                         
                         Spacer(minLength: 4)
                         
@@ -172,6 +175,7 @@ struct TrainInfoRow: View {
                             Text("[\(travelTimeString())]")
                                 .font(.system(.caption, design: .default).monospacedDigit())
                                 .foregroundStyle(.secondary)
+                                .id("travel-\(refreshID)")
                             
                             if train.trainChanges > 0 && !train.allTrainNumbers.isEmpty {
                                 Text("(\(train.allTrainNumbers.map { "#\($0)" }.joined(separator: ", ")))")
@@ -207,6 +211,9 @@ struct TrainInfoRow: View {
             .padding(.vertical, 5)
         }
         .buttonStyle(PlainButtonStyle())
+        .onReceive(NotificationCenter.default.publisher(for: .trainDisplayUpdate)) { _ in
+            refreshID = UUID()
+        }
     }
     
     private func timeUntilDepartureColor() -> Color {

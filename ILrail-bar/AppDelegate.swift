@@ -7,6 +7,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
     private var preferencesPopover: NSPopover!
     private var trainScheduleTimer: Timer?
     private var activeScheduleTimer: Timer?
+    private var displayUpdateTimer: Timer?
     private let networkManager = NetworkManager()
     private var preferencesWindow: NSWindow?
     private var aboutWindow: NSWindow?
@@ -104,6 +105,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             repeats: true
         )
         
+        displayUpdateTimer = Timer.scheduledTimer(
+            timeInterval: 10,
+            target: self,
+            selector: #selector(updateDisplayWithoutFetching),
+            userInfo: nil,
+            repeats: true
+        )
+        
         // Listen for preferences changes
         NotificationCenter.default.addObserver(
             self,
@@ -132,6 +141,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
     func applicationWillTerminate(_ notification: Notification) {
         eventMonitor?.stop()
         preferencesEventMonitor?.stop()
+        
+        // Invalidate all timers when the app terminates
+        trainScheduleTimer?.invalidate()
+        activeScheduleTimer?.invalidate()
+        displayUpdateTimer?.invalidate()
     }
     
     @objc private func timerRefresh() {
@@ -358,6 +372,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             repeats: true
         )
         
+        // Reset display update timer to ensure consistent behavior with new preferences
+        if let existingDisplayTimer = displayUpdateTimer {
+            existingDisplayTimer.invalidate()
+        }
+        
+        displayUpdateTimer = Timer.scheduledTimer(
+            timeInterval: 10,
+            target: self,
+            selector: #selector(updateDisplayWithoutFetching),
+            userInfo: nil,
+            repeats: true
+        )
+        
         // Check if menu bar should be visible with new preferences
         checkActiveHours()
     }
@@ -429,6 +456,45 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
         // small delay allows the animation to be visible to the user
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             self?.fetchTrainSchedule(showLoading: false)
+        }
+    }
+    
+    @objc private func updateDisplayWithoutFetching() {
+        // Don't do anything if we have no train schedules or if we're outside active hours
+        guard !currentTrainSchedules.isEmpty && isMenuBarVisible else {
+            return
+        }
+        
+        logInfo("Updating display without fetching new data")
+        
+        // Find all trains that haven't departed yet
+        let now = Date()
+        let upcomingTrains = currentTrainSchedules.filter { $0.departureTime > now }
+        
+        // Update the current train schedules array to only include upcoming trains
+        if upcomingTrains.count < currentTrainSchedules.count && !upcomingTrains.isEmpty {
+            currentTrainSchedules = upcomingTrains
+        }
+        
+        if let nextTrain = upcomingTrains.first {
+            // Update the menu bar with the next upcoming train
+            updateStatusBarWithTrain(nextTrain)
+            
+            if popover.isShown {
+                updatePopoverContent()
+            }
+            
+            NotificationCenter.default.post(name: .trainDisplayUpdate, object: nil)
+            
+        } else if upcomingTrains.isEmpty && !currentTrainSchedules.isEmpty {
+            // All trains have departed, show no trains message
+            currentTrainSchedules = []
+            currentErrorMessage = Constants.noTrainFoundMessage
+            updateStatusBarWithError(Constants.noTrainFoundMessage)
+            
+            if popover.isShown {
+                updatePopoverContent()
+            }
         }
     }
     

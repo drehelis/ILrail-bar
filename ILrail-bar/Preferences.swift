@@ -169,4 +169,5 @@ struct Station: Identifiable, Hashable {
 extension Notification.Name {
     static let reloadPreferencesChanged = Notification.Name("com.ilrailbar.reloadPreferencesChanged")
     static let stationsLoaded = Notification.Name("com.ilrailbar.stationsLoaded")
+    static let trainDisplayUpdate = Notification.Name("com.ilrailbar.trainDisplayUpdate")
 }
