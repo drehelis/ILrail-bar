@@ -21,7 +21,7 @@ A sleek and efficient macOS menu bar app for tracking Israel Railways train sche
 ## Screenshots
 
 <p align="center">
-  <img src="screenshots/menu.png" width="600" alt="Menu Bar Interface">
+  <img src="screenshots/menu.png" width="400" alt="Menu Bar Interface">
   <img src="screenshots/prefs.png" width="400" alt="Menu Bar Interface">
 </p>
 
