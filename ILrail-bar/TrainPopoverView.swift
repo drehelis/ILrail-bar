@@ -12,9 +12,6 @@ struct TrainPopoverView: View {
     let onAbout: () -> Void
     let onQuit: () -> Void
     
-    private let redAlertMinutes: Int
-    private let blueAlertMinutes: Int
-    
     init(trainSchedules: [TrainSchedule], 
          fromStationName: String,
          toStationName: String,
@@ -36,8 +33,6 @@ struct TrainPopoverView: View {
         self.onWebsite = onWebsite
         self.onAbout = onAbout
         self.onQuit = onQuit
-        self.redAlertMinutes = preferences.redAlertMinutes
-        self.blueAlertMinutes = preferences.blueAlertMinutes
     }
     
     var body: some View {
@@ -67,9 +62,7 @@ struct TrainPopoverView: View {
                     .padding(.vertical, 5)
                         
                     TrainInfoRow(
-                        train: trainSchedules[0],
-                        redAlertMinutes: redAlertMinutes,
-                        blueAlertMinutes: blueAlertMinutes
+                        train: trainSchedules[0]
                     )
                     
                     // Upcoming trains
@@ -87,9 +80,7 @@ struct TrainPopoverView: View {
                         let maxItems = min(trainSchedules.count, PreferencesManager.shared.preferences.upcomingItemsCount + 1)
                         ForEach(1..<maxItems, id: \.self) { index in
                             TrainInfoRow(
-                                train: trainSchedules[index],
-                                redAlertMinutes: redAlertMinutes,
-                                blueAlertMinutes: blueAlertMinutes
+                                train: trainSchedules[index]
                             )
                             
                             if index < maxItems - 1 {
@@ -137,8 +128,6 @@ struct TrainPopoverView: View {
 
 struct TrainInfoRow: View {
     let train: TrainSchedule
-    let redAlertMinutes: Int
-    let blueAlertMinutes: Int
     
     @State private var isCopied: Bool = false
     @State private var refreshID: UUID = UUID()
@@ -157,7 +146,7 @@ struct TrainInfoRow: View {
                         Text(timeString(for: train.departureTime))
                             .font(.system(.body, design: .default).monospacedDigit())
                             .fontWeight(.medium)
-                            .foregroundColor(timeUntilDepartureColor())
+                            .foregroundColor(.primary)
                             .id("departure-\(refreshID)")
                         
                         Text("→")
@@ -166,7 +155,7 @@ struct TrainInfoRow: View {
                         Text(timeString(for: train.arrivalTime))
                             .font(.system(.body, design: .default).monospacedDigit())
                             .fontWeight(.medium)
-                            .foregroundColor(timeUntilDepartureColor())
+                            .foregroundColor(.primary)
                             .id("arrival-\(refreshID)")
                         
                         Spacer(minLength: 4)
@@ -213,19 +202,6 @@ struct TrainInfoRow: View {
         .buttonStyle(PlainButtonStyle())
         .onReceive(NotificationCenter.default.publisher(for: .trainDisplayUpdate)) { _ in
             refreshID = UUID()
-        }
-    }
-    
-    private func timeUntilDepartureColor() -> Color {
-        let timeUntilDepartureSeconds = train.departureTime.timeIntervalSinceNow
-        let timeUntilDepartureMinutes = timeUntilDepartureSeconds / 60
-        
-        if timeUntilDepartureMinutes <= Double(redAlertMinutes) {
-            return Color.red
-        } else if timeUntilDepartureMinutes <= Double(blueAlertMinutes) {
-            return Color.blue
-        } else {
-            return Color.primary
         }
     }
     

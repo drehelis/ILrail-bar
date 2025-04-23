@@ -5,8 +5,6 @@ struct StationPreferences: Codable {
     var toStation: String
     var upcomingItemsCount: Int
     var launchAtLogin: Bool
-    var redAlertMinutes: Int
-    var blueAlertMinutes: Int
     var refreshInterval: Int
     var activeDays: [Bool]
     var activeStartHour: Int
@@ -17,8 +15,6 @@ struct StationPreferences: Codable {
         toStation: "2300",
         upcomingItemsCount: 3,
         launchAtLogin: false,
-        redAlertMinutes: 15,
-        blueAlertMinutes: 30,
         refreshInterval: 600,
         activeDays: [true, true, true, true, true, false, false], // All days active by default
         activeStartHour: 6, // 6 AM
@@ -50,7 +46,7 @@ class PreferencesManager {
     }
     
     func savePreferences(fromStation: String, toStation: String, upcomingItemsCount: Int = 3, 
-                         launchAtLogin: Bool = false, redAlertMinutes: Int = 15, blueAlertMinutes: Int = 30,
+                         launchAtLogin: Bool = false, 
                          refreshInterval: Int = 300, activeDays: [Bool]? = nil, activeStartHour: Int = 6, activeEndHour: Int = 23) {
         let currentPrefs = preferences
         preferences = StationPreferences(
@@ -58,8 +54,6 @@ class PreferencesManager {
             toStation: toStation, 
             upcomingItemsCount: upcomingItemsCount, 
             launchAtLogin: launchAtLogin,
-            redAlertMinutes: redAlertMinutes,
-            blueAlertMinutes: blueAlertMinutes,
             refreshInterval: refreshInterval,
             activeDays: activeDays ?? currentPrefs.activeDays,
             activeStartHour: activeStartHour,

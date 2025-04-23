@@ -507,26 +507,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             }
             
             let departureTimeString = DateFormatters.timeFormatter.string(from: train.departureTime)
-            let timeUntilDepartureSeconds = train.departureTime.timeIntervalSinceNow
-
-            let preferences = PreferencesManager.shared.preferences
-            let redTimeUntilDeparture = TimeInterval(preferences.redAlertMinutes * 60)
-            let blueTimeUntilDeparture = TimeInterval(preferences.blueAlertMinutes * 60)
             
             // Use a monospaced font to ensure consistent width
             let font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
             
-            var attributes: [NSAttributedString.Key: Any] = [
-                .font: font
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: font,
+                .foregroundColor: NSColor.labelColor
             ]
-            
-            if timeUntilDepartureSeconds <= redTimeUntilDeparture {
-                attributes[.foregroundColor] = NSColor.systemRed
-            } else if timeUntilDepartureSeconds <= blueTimeUntilDeparture {
-                attributes[.foregroundColor] = NSColor.systemBlue
-            } else {
-                attributes[.foregroundColor] = NSColor.labelColor
-            }
             
             // Use a consistent width for the text
             button.attributedTitle = NSAttributedString(
@@ -633,8 +621,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             toStation: oldFromStation,
             upcomingItemsCount: preferences.upcomingItemsCount,
             launchAtLogin: preferences.launchAtLogin,
-            redAlertMinutes: preferences.redAlertMinutes,
-            blueAlertMinutes: preferences.blueAlertMinutes,
             refreshInterval: preferences.refreshInterval,
             activeDays: preferences.activeDays,
             activeStartHour: preferences.activeStartHour,

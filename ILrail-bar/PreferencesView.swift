@@ -109,8 +109,6 @@ struct PreferencesView: View {
     @State private var selectedToStation: String
     @State private var upcomingItemsCount: Int
     @State private var launchAtLogin: Bool
-    @State private var redAlertMinutes: Int
-    @State private var blueAlertMinutes: Int
     @State private var refreshInterval: Int
     @State private var activeDays: [Bool]
     @State private var activeStartHour: Int
@@ -128,8 +126,6 @@ struct PreferencesView: View {
         _selectedToStation = State(initialValue: preferences.toStation)
         _upcomingItemsCount = State(initialValue: preferences.upcomingItemsCount)
         _launchAtLogin = State(initialValue: preferences.launchAtLogin)
-        _redAlertMinutes = State(initialValue: preferences.redAlertMinutes)
-        _blueAlertMinutes = State(initialValue: preferences.blueAlertMinutes)
         _refreshInterval = State(initialValue: preferences.refreshInterval)
         _activeDays = State(initialValue: preferences.activeDays)
         _activeStartHour = State(initialValue: preferences.activeStartHour)
@@ -183,51 +179,7 @@ struct PreferencesView: View {
                     }
                     
                     HStack(alignment: .center) {
-                        (Text("Highlight ")
-                            .foregroundColor(.primary)
-                            + Text("RED")
-                                .foregroundColor(.red)
-                                .bold()
-                            + Text(" when"))
-                            .frame(width: 150, alignment: .leading)
-                        
-                        HStack(spacing: 5) {
-                            Text("≤")
-                                .foregroundColor(.secondary)
-                            Text("\(redAlertMinutes)")
-                                .frame(minWidth: 20, alignment: .trailing)
-                            Stepper("", value: $redAlertMinutes, in: 1...60)
-                                .labelsHidden()
-                            Text("min")
-                                .foregroundColor(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    
-                    HStack(alignment: .center) {
-                        (Text("Highlight ")
-                            .foregroundColor(.primary)
-                            + Text("BLUE")
-                                .foregroundColor(.blue)
-                                .bold()
-                            + Text(" when"))
-                            .frame(width: 150, alignment: .leading)
-                        
-                        HStack(spacing: 5) {
-                            Text("≤")
-                                .foregroundColor(.secondary)
-                            Text("\(blueAlertMinutes)")
-                                .frame(minWidth: 20, alignment: .trailing)
-                            Stepper("", value: $blueAlertMinutes, in: 1...120)
-                                .labelsHidden()
-                            Text("min")
-                                .foregroundColor(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-
-                    HStack(alignment: .center) {
-                        Text("Refresh Interval")
+                        Text("Schedule fetch interval")
                             .frame(width: 150, alignment: .leading)
                         
                         Picker("", selection: $refreshInterval) {
@@ -269,7 +221,6 @@ struct PreferencesView: View {
                                 }
                                 .buttonStyle(PlainButtonStyle())
                             }
-                            Spacer()
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -286,8 +237,6 @@ struct PreferencesView: View {
                             }
                             .frame(width: 100)
                             .pickerStyle(PopUpButtonPickerStyle())
-                            
-                            Text("to")
                             
                             Picker("", selection: $activeEndHour) {
                                 ForEach(0..<24) { hour in
@@ -317,8 +266,6 @@ struct PreferencesView: View {
                         toStation: selectedToStation,
                         upcomingItemsCount: upcomingItemsCount,
                         launchAtLogin: launchAtLogin,
-                        redAlertMinutes: redAlertMinutes,
-                        blueAlertMinutes: blueAlertMinutes,
                         refreshInterval: refreshInterval,
                         activeDays: activeDays,
                         activeStartHour: activeStartHour,
