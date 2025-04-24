@@ -114,6 +114,7 @@ struct PreferencesView: View {
     @State private var activeStartHour: Int
     @State private var activeEndHour: Int
     @State private var walkTimeDurationMin: Int
+    @State private var maxTrainChanges: Int
     @State private var stations: [Station] = Station.allStations
     @State private var isLoading: Bool = false
     
@@ -132,6 +133,7 @@ struct PreferencesView: View {
         _activeStartHour = State(initialValue: preferences.activeStartHour)
         _activeEndHour = State(initialValue: preferences.activeEndHour)
         _walkTimeDurationMin = State(initialValue: preferences.walkTimeDurationMin)
+        _maxTrainChanges = State(initialValue: preferences.maxTrainChanges)
         self.onSave = onSave
         self.onCancel = onCancel
     }
@@ -214,6 +216,22 @@ struct PreferencesView: View {
                         .pickerStyle(PopUpButtonPickerStyle())
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    
+                    HStack(alignment: .center) {
+                        Text("Max train changes")
+                            .frame(width: 150, alignment: .leading)
+                            .help("Filter out rides requiring more than this many train changes")
+                        
+                        Picker("", selection: $maxTrainChanges) {
+                            Text("No filtering").tag(-1)
+                            Text("Direct trains only").tag(0)
+                            Text("Max 1 change").tag(1)
+                            Text("Max 2 changes").tag(2)
+                            Text("Max 3 changes").tag(3)
+                        }
+                        .pickerStyle(PopUpButtonPickerStyle())
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                                                             
                     Divider()
                     
@@ -288,7 +306,8 @@ struct PreferencesView: View {
                         activeDays: activeDays,
                         activeStartHour: activeStartHour,
                         activeEndHour: activeEndHour,
-                        walkTimeDurationMin: walkTimeDurationMin
+                        walkTimeDurationMin: walkTimeDurationMin,
+                        maxTrainChanges: maxTrainChanges
                     )
                     
                     // Configure launch at login

@@ -235,10 +235,15 @@ class NetworkManager {
                 
                 // Filter out trains that have already departed with 1-minute buffer
                 // Also filter out trains that would depart before the user can walk to the station
+                // And filter out trains with more changes than the max allowed
                 let walkTimeDurationSec = TimeInterval(preferences.walkTimeDurationMin * 60)
                 let upcomingTrains = trainSchedules.filter { 
-                    // Keep trains where departure time is after current time plus walk time
-                    // Or recently departed trains if no walk time is set (with 1-minute buffer)
+                    // First check if this train has too many changes
+                    if preferences.maxTrainChanges != -1 && $0.trainChanges > preferences.maxTrainChanges {
+                        return false
+                    }
+                    
+                    // Then check if the train is still relevant based on timing
                     let timeUntilDeparture = $0.departureTime.timeIntervalSince(now)
                     if preferences.walkTimeDurationMin > 0 {
                         return timeUntilDeparture > walkTimeDurationSec
