@@ -19,7 +19,7 @@ struct APIResponse: Decodable {
     let result: TrainResult
 }
 
-struct TrainSchedule {
+struct TrainSchedule: Equatable {
     let trainNumber: String
     let departureTime: Date
     let arrivalTime: Date

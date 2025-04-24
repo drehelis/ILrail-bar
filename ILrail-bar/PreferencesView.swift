@@ -113,6 +113,7 @@ struct PreferencesView: View {
     @State private var activeDays: [Bool]
     @State private var activeStartHour: Int
     @State private var activeEndHour: Int
+    @State private var walkTimeDurationMin: Int
     @State private var stations: [Station] = Station.allStations
     @State private var isLoading: Bool = false
     
@@ -130,6 +131,7 @@ struct PreferencesView: View {
         _activeDays = State(initialValue: preferences.activeDays)
         _activeStartHour = State(initialValue: preferences.activeStartHour)
         _activeEndHour = State(initialValue: preferences.activeEndHour)
+        _walkTimeDurationMin = State(initialValue: preferences.walkTimeDurationMin)
         self.onSave = onSave
         self.onCancel = onCancel
     }
@@ -164,9 +166,25 @@ struct PreferencesView: View {
                         stations: stations,
                         selectedStationId: $selectedToStation
                     )
-                    
+
                     HStack(alignment: .center) {
-                        Text("Upcoming Items")
+                        Text("Walking time duration")
+                            .frame(width: 150, alignment: .leading)
+                            .help("The time it takes to walk from your location to the station. Adjusts schedule accordingly.")
+                        
+                        HStack(spacing: 5) {
+                            Text("\(walkTimeDurationMin)")
+                                .frame(minWidth: 20, alignment: .trailing)
+                            Stepper("", value: $walkTimeDurationMin, in: 0...60)
+                                .labelsHidden()
+                            Text("minutes")
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    HStack(alignment: .center) {
+                        Text("Upcoming list items")
                             .frame(width: 150, alignment: .leading)
                         
                         HStack(spacing: 5) {
@@ -196,7 +214,7 @@ struct PreferencesView: View {
                         .pickerStyle(PopUpButtonPickerStyle())
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    
+                                                            
                     Divider()
                     
                     VStack(alignment: .leading, spacing: 10) {
@@ -269,7 +287,8 @@ struct PreferencesView: View {
                         refreshInterval: refreshInterval,
                         activeDays: activeDays,
                         activeStartHour: activeStartHour,
-                        activeEndHour: activeEndHour
+                        activeEndHour: activeEndHour,
+                        walkTimeDurationMin: walkTimeDurationMin
                     )
                     
                     // Configure launch at login

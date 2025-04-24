@@ -9,6 +9,7 @@ struct StationPreferences: Codable {
     var activeDays: [Bool]
     var activeStartHour: Int
     var activeEndHour: Int
+    var walkTimeDurationMin: Int
     
     static let defaultPreferences = StationPreferences(
         fromStation: "3700",
@@ -18,7 +19,8 @@ struct StationPreferences: Codable {
         refreshInterval: 600,
         activeDays: [true, true, true, true, true, false, false], // All days active by default
         activeStartHour: 6, // 6 AM
-        activeEndHour: 23 // 11 PM
+        activeEndHour: 23, // 11 PM
+        walkTimeDurationMin: 0 // Default to 0 minutes
     )
 }
 
@@ -47,7 +49,8 @@ class PreferencesManager {
     
     func savePreferences(fromStation: String, toStation: String, upcomingItemsCount: Int = 3, 
                          launchAtLogin: Bool = false, 
-                         refreshInterval: Int = 300, activeDays: [Bool]? = nil, activeStartHour: Int = 6, activeEndHour: Int = 23) {
+                         refreshInterval: Int = 300, activeDays: [Bool]? = nil, activeStartHour: Int = 6, activeEndHour: Int = 23,
+                         walkTimeDurationMin: Int = 0) {
         let currentPrefs = preferences
         preferences = StationPreferences(
             fromStation: fromStation, 
@@ -57,7 +60,8 @@ class PreferencesManager {
             refreshInterval: refreshInterval,
             activeDays: activeDays ?? currentPrefs.activeDays,
             activeStartHour: activeStartHour,
-            activeEndHour: activeEndHour
+            activeEndHour: activeEndHour,
+            walkTimeDurationMin: walkTimeDurationMin
         )
     }
 }

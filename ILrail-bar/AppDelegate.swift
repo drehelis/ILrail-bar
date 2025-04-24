@@ -465,9 +465,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             return
         }
         
-        // Find all trains that haven't departed yet
+        // Find all trains that haven't departed yet, considering walk time
         let now = Date()
-        let upcomingTrains = currentTrainSchedules.filter { $0.departureTime > now }
+        let walkTimeDurationSec = TimeInterval(PreferencesManager.shared.preferences.walkTimeDurationMin * 60)
+        
+        let upcomingTrains = currentTrainSchedules.filter {
+            let timeUntilDeparture = $0.departureTime.timeIntervalSince(now)
+            
+            if PreferencesManager.shared.preferences.walkTimeDurationMin > 0 {
+                return timeUntilDeparture > walkTimeDurationSec
+            } else {
+                return timeUntilDeparture > -60 // Allow trains departing within the last minute
+            }
+        }
         
         // Update the current train schedules array to only include upcoming trains
         if upcomingTrains.count < currentTrainSchedules.count && !upcomingTrains.isEmpty {
@@ -624,7 +634,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             refreshInterval: preferences.refreshInterval,
             activeDays: preferences.activeDays,
             activeStartHour: preferences.activeStartHour,
-            activeEndHour: preferences.activeEndHour
+            activeEndHour: preferences.activeEndHour,
+            walkTimeDurationMin: preferences.walkTimeDurationMin
         )
         
         // Trigger a refresh to update the train schedule

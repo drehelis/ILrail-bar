@@ -234,9 +234,17 @@ class NetworkManager {
                 }
                 
                 // Filter out trains that have already departed with 1-minute buffer
-                // Sometimes API time and local time can be slightly off
+                // Also filter out trains that would depart before the user can walk to the station
+                let walkTimeDurationSec = TimeInterval(preferences.walkTimeDurationMin * 60)
                 let upcomingTrains = trainSchedules.filter { 
-                    $0.departureTime.timeIntervalSince(now) > -60 // Allow trains departing within the last minute
+                    // Keep trains where departure time is after current time plus walk time
+                    // Or recently departed trains if no walk time is set (with 1-minute buffer)
+                    let timeUntilDeparture = $0.departureTime.timeIntervalSince(now)
+                    if preferences.walkTimeDurationMin > 0 {
+                        return timeUntilDeparture > walkTimeDurationSec
+                    } else {
+                        return timeUntilDeparture > -60 // Allow trains departing within the last minute
+                    }
                 }
                 
                 // Sort the filtered trains by departure time
