@@ -635,7 +635,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             activeDays: preferences.activeDays,
             activeStartHour: preferences.activeStartHour,
             activeEndHour: preferences.activeEndHour,
-            walkTimeDurationMin: preferences.walkTimeDurationMin
+            walkTimeDurationMin: preferences.walkTimeDurationMin,
+            maxTrainChanges: preferences.maxTrainChanges
         )
         
         // Trigger a refresh to update the train schedule

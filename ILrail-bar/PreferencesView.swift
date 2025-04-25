@@ -187,19 +187,6 @@ struct PreferencesView: View {
                     }
 
                     HStack(alignment: .center) {
-                        Text("Upcoming list items")
-                            .frame(width: 150, alignment: .leading)
-                        
-                        HStack(spacing: 5) {
-                            Text("\(upcomingItemsCount)")
-                                .frame(minWidth: 20, alignment: .trailing)
-                            Stepper("", value: $upcomingItemsCount, in: 1...10)
-                                .labelsHidden()
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    
-                    HStack(alignment: .center) {
                         Text("Schedule fetch interval")
                             .frame(width: 150, alignment: .leading)
                         
@@ -272,38 +259,48 @@ struct PreferencesView: View {
                     
                     Divider()
                     
-                    // Add a disclosure group for Additional Filters
-                    DisclosureGroup(
-                        isExpanded: $showAdditionalFilters,
-                        content: {
+                    Button(action: {
+                        showAdditionalFilters.toggle()
+                    }) {
+                        HStack {
+                            Text("Additional Filters")
+                            Spacer()
+                            Image(systemName: showAdditionalFilters ? "chevron.up" : "chevron.down")
+                        }
+                    }
+                    .buttonStyle(PlainButtonStyle())
+
+                    if showAdditionalFilters {
+                        VStack(spacing: 20) {
                             HStack(alignment: .center) {
-                                Text("Max train changes")
+                                Text("Upcoming list items")
                                     .frame(width: 150, alignment: .leading)
-                                    .help("Filter out rides requiring more than this many train changes")
                                 
+                                HStack(spacing: 5) {
+                                    Text("\(upcomingItemsCount)")
+                                        .frame(minWidth: 20, alignment: .trailing)
+                                    Stepper("", value: $upcomingItemsCount, in: 1...10)
+                                        .labelsHidden()
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+
+                            HStack(alignment: .center) {
+                                Text("Limit train change")
+                                    .frame(width: 150, alignment: .leading)
+
                                 Picker("", selection: $maxTrainChanges) {
-                                    Text("No filtering").tag(-1)
-                                    Text("Direct trains only").tag(0)
-                                    Text("Max 1 change").tag(1)
-                                    Text("Max 2 changes").tag(2)
-                                    Text("Max 3 changes").tag(3)
+                                    Text("No limit").tag(-1)
+                                    Text("Direct only").tag(0)
+                                    Text("1 change").tag(1)
+                                    Text("2 changes").tag(2)
+                                    Text("3 changes").tag(3)
                                 }
                                 .pickerStyle(PopUpButtonPickerStyle())
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             }
-                            .padding(.top, 10)
-                        },
-                        label: {
-                            HStack {
-                                Text("Additional Filters")
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
-                                Spacer()
-                                Image(systemName: showAdditionalFilters ? "chevron.down" : "chevron.right")
-                                    .font(.caption)
-                            }
                         }
-                    )
+                    }
                 }
                 .padding(.horizontal, 20)
             }
