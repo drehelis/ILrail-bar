@@ -117,6 +117,7 @@ struct PreferencesView: View {
     @State private var maxTrainChanges: Int
     @State private var stations: [Station] = Station.allStations
     @State private var isLoading: Bool = false
+    @State private var showAdditionalFilters: Bool = false // Added state for the disclosure group
     
     // Callback functions for popover actions
     let onSave: () -> Void
@@ -216,22 +217,6 @@ struct PreferencesView: View {
                         .pickerStyle(PopUpButtonPickerStyle())
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    
-                    HStack(alignment: .center) {
-                        Text("Max train changes")
-                            .frame(width: 150, alignment: .leading)
-                            .help("Filter out rides requiring more than this many train changes")
-                        
-                        Picker("", selection: $maxTrainChanges) {
-                            Text("No filtering").tag(-1)
-                            Text("Direct trains only").tag(0)
-                            Text("Max 1 change").tag(1)
-                            Text("Max 2 changes").tag(2)
-                            Text("Max 3 changes").tag(3)
-                        }
-                        .pickerStyle(PopUpButtonPickerStyle())
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
                                                             
                     Divider()
                     
@@ -284,6 +269,41 @@ struct PreferencesView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    
+                    Divider()
+                    
+                    // Add a disclosure group for Additional Filters
+                    DisclosureGroup(
+                        isExpanded: $showAdditionalFilters,
+                        content: {
+                            HStack(alignment: .center) {
+                                Text("Max train changes")
+                                    .frame(width: 150, alignment: .leading)
+                                    .help("Filter out rides requiring more than this many train changes")
+                                
+                                Picker("", selection: $maxTrainChanges) {
+                                    Text("No filtering").tag(-1)
+                                    Text("Direct trains only").tag(0)
+                                    Text("Max 1 change").tag(1)
+                                    Text("Max 2 changes").tag(2)
+                                    Text("Max 3 changes").tag(3)
+                                }
+                                .pickerStyle(PopUpButtonPickerStyle())
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .padding(.top, 10)
+                        },
+                        label: {
+                            HStack {
+                                Text("Additional Filters")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Image(systemName: showAdditionalFilters ? "chevron.down" : "chevron.right")
+                                    .font(.caption)
+                            }
+                        }
+                    )
                 }
                 .padding(.horizontal, 20)
             }
