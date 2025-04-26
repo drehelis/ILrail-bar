@@ -19,6 +19,7 @@ class NetworkManager {
         case decodingError
         case serverError(String)
         case cacheError
+        case cacheTooOld
     }
     
     private struct CacheKeys {
@@ -47,6 +48,11 @@ class NetworkManager {
             return (cachedData, minutes)
         }
         return nil
+    }
+    
+    // Check if cached data is still valid based on refresh interval
+    private func isCacheValid(ageInMinutes: Int, refreshIntervalSeconds: Int) -> Bool {
+        return ageInMinutes < (refreshIntervalSeconds / 60)
     }
     
     // Function to get timetable cache key
@@ -153,33 +159,11 @@ class NetworkManager {
         
         let preferences = PreferencesManager.shared.preferences
         
-        logInfo("Fetching trains from \(preferences.fromStation) to \(preferences.toStation)")
-        
-        var components = URLComponents(string: timetableBaseURL)
-        components?.queryItems = [
-            URLQueryItem(name: "fromStation", value: preferences.fromStation),
-            URLQueryItem(name: "toStation", value: preferences.toStation),
-            URLQueryItem(name: "date", value: currentDate),
-            URLQueryItem(name: "hour", value: currentTime),
-            URLQueryItem(name: "scheduleType", value: scheduleType),
-            URLQueryItem(name: "systemType", value: systemType),
-            URLQueryItem(name: "languageId", value: languageId)
-        ]
-        
-        guard let url = components?.url else {
-            completion(.failure(NetworkError.invalidURL))
-            return
-        }
-        
-        var request = URLRequest(url: url)
-        request.addValue(madeUpUserAgent, forHTTPHeaderField: "User-Agent")
-        request.addValue(apiKey, forHTTPHeaderField: "ocp-apim-subscription-key")
-        
         // Generate a cache key based on from/to stations
         let cacheKey = getTimetableCacheKey(fromStation: preferences.fromStation, toStation: preferences.toStation)
         
         // Create a function to process API response data
-        let processData = { (data: Data, isFromCache: Bool, cacheAgeMinutes: Int?) -> [TrainSchedule] in
+        let processData = { (data: Data) -> [TrainSchedule] in
             do {
                 let decoder = JSONDecoder()
                 decoder.dateDecodingStrategy = .custom { decoder in
@@ -225,9 +209,7 @@ class NetworkManager {
                             fromStationName: firstTrainData.fromStationName ?? preferences.fromStation,
                             toStationName: travel.trains.last?.toStationName ?? firstTrainData.toStationName ?? preferences.toStation,
                             trainChanges: trainChanges,
-                            allTrainNumbers: allTrainNumbers,
-                            isFromCache: isFromCache,
-                            cacheAgeMinutes: cacheAgeMinutes
+                            allTrainNumbers: allTrainNumbers
                         )
                         trainSchedules.append(schedule)
                     }
@@ -254,15 +236,7 @@ class NetworkManager {
                 
                 // Sort the filtered trains by departure time
                 let sortedTrains = upcomingTrains.sorted { $0.departureTime < $1.departureTime }
-                
-                logDebug("Sorted upcoming trains:")
-                for (_, train) in sortedTrains.enumerated() {
-                    let formatter = DateFormatter()
-                    formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-                    let departureString = formatter.string(from: train.departureTime)
-                    logDebug("Train #\(train.trainNumber): from: \(train.fromStationName), to: \(train.toStationName), departs at \(departureString)")
-                }
-                
+                               
                 return sortedTrains
             } catch {
                 logError("Decoding error: \(error)")
@@ -270,18 +244,79 @@ class NetworkManager {
             }
         }
         
-        // Try to use cached data first, especially if offline
+        // First check the cache
+        if let cachedDataInfo = getCachedData(forKey: cacheKey) {
+            let cacheAgeInMinutes = cachedDataInfo.ageInMinutes
+            let refreshIntervalSeconds = preferences.refreshInterval
+            
+            // Check if cache is still valid based on the refresh interval
+            if isCacheValid(ageInMinutes: cacheAgeInMinutes, refreshIntervalSeconds: refreshIntervalSeconds) {
+                do {
+                    let cachedTrains = try processData(cachedDataInfo.data)
+                    logInfo("Using cached timetable data from \(cacheAgeInMinutes) minutes ago (within refresh interval)")
+                    completion(.success(cachedTrains))
+                    return // Exit early as we're using cache
+                } catch {
+                    logWarning("Error processing cached data: \(error.localizedDescription). Will fetch fresh data.")
+                    // Continue to network fetch below if cache processing fails
+                }
+            } else {
+                logInfo("Cache is \(cacheAgeInMinutes) minutes old, which exceeds refresh interval (\(refreshIntervalSeconds) seconds). Fetching fresh data.")
+                // Continue to network fetch below as cache is too old
+            }
+        } else {
+            logInfo("No cache found. Fetching fresh data.")
+            // Continue to network fetch below as there's no cache
+        }
+        
+        // If we reached here, we need to fetch from the network
+        logInfo("Fetching trains from \(preferences.fromStation) to \(preferences.toStation)")
+        
+        var components = URLComponents(string: timetableBaseURL)
+        components?.queryItems = [
+            URLQueryItem(name: "fromStation", value: preferences.fromStation),
+            URLQueryItem(name: "toStation", value: preferences.toStation),
+            URLQueryItem(name: "date", value: currentDate),
+            URLQueryItem(name: "hour", value: currentTime),
+            URLQueryItem(name: "scheduleType", value: scheduleType),
+            URLQueryItem(name: "systemType", value: systemType),
+            URLQueryItem(name: "languageId", value: languageId)
+        ]
+        
+        guard let url = components?.url else {
+            // If we can't form the URL but have cache (which is outdated), use it anyway as fallback
+            if let cachedDataInfo = getCachedData(forKey: cacheKey) {
+                do {
+                    let cachedTrains = try processData(cachedDataInfo.data)
+                    logInfo("Using outdated cached data as fallback due to URL formation error")
+                    completion(.success(cachedTrains))
+                } catch {
+                    logWarning("Error processing cached data: \(error.localizedDescription). No valid data available.")
+                    completion(.failure(NetworkError.invalidURL))
+                }
+                return
+            }
+            
+            completion(.failure(NetworkError.invalidURL))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.addValue(madeUpUserAgent, forHTTPHeaderField: "User-Agent")
+        request.addValue(apiKey, forHTTPHeaderField: "ocp-apim-subscription-key")
+        
         URLSession.shared.dataTask(with: request) { data, response, error in            
             if let error = error {
-                logWarning("Network error: \(error.localizedDescription). Attempting to use cached data.")
+                logWarning("Network error: \(error.localizedDescription)")
                 
-                // Try to use cached data instead
+                // Try to use cached data as fallback, even if it's outdated
                 if let cachedDataInfo = self.getCachedData(forKey: cacheKey) {
                     do {
-                        let cachedTrains = try processData(cachedDataInfo.data, true, cachedDataInfo.ageInMinutes)
-                        logInfo("Using cached timetable data from \(cachedDataInfo.ageInMinutes) minutes ago")
+                        let cachedTrains = try processData(cachedDataInfo.data)
+                        logInfo("Using cached timetable data from \(cachedDataInfo.ageInMinutes) minutes ago as fallback")
                         completion(.success(cachedTrains))
                     } catch {
+                        logWarning("Error processing cached data: \(error.localizedDescription). No valid data available.")
                         completion(.failure(error))
                     }
                 } else {
@@ -291,23 +326,63 @@ class NetworkManager {
             }
             
             guard let data = data else {
+                // Try to use cached data as fallback for no data
+                if let cachedDataInfo = self.getCachedData(forKey: cacheKey) {
+                    do {
+                        let cachedTrains = try processData(cachedDataInfo.data)
+                        logInfo("Using cached data as fallback due to empty response")
+                        completion(.success(cachedTrains))
+                    } catch {
+                        logWarning("Error processing cached data: \(error.localizedDescription). No valid data available.")
+                        completion(.failure(NetworkError.noData))
+                    }
+                    return
+                }
+                
                 completion(.failure(NetworkError.noData))
                 return
             }
             
             if let httpResponse = response as? HTTPURLResponse, !(200...299).contains(httpResponse.statusCode) {
                 let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown server error"
+                
+                // Try to use cached data as fallback for server errors
+                if let cachedDataInfo = self.getCachedData(forKey: cacheKey) {
+                    do {
+                        let cachedTrains = try processData(cachedDataInfo.data)
+                        logInfo("Using cached data as fallback due to server error: \(errorMessage)")
+                        completion(.success(cachedTrains))
+                    } catch {
+                        logWarning("Error processing cached data: \(error.localizedDescription). No valid data available.")
+                        completion(.failure(NetworkError.serverError(errorMessage)))
+                    }
+                    return
+                }
+                
                 completion(.failure(NetworkError.serverError(errorMessage)))
                 return
             }
             
             // Process the fresh data from the network
             do {
-                let sortedTrains = try processData(data, false, nil)
+                let sortedTrains = try processData(data)
                 // Cache the data for future use
                 self.cacheData(data, forKey: cacheKey)
                 completion(.success(sortedTrains))
             } catch {
+                // Try to use cached data as fallback for parsing errors
+                if let cachedDataInfo = self.getCachedData(forKey: cacheKey) {
+                    do {
+                        let cachedTrains = try processData(cachedDataInfo.data)
+                        logInfo("Using cached data as fallback due to parsing error")
+                        completion(.success(cachedTrains))
+                    } catch {
+                        logWarning("Error processing cached data: \(error.localizedDescription). No valid data available.")
+                        completion(.failure(error))
+                    }
+                    return
+                }
+                
                 completion(.failure(error))
             }
         }.resume()

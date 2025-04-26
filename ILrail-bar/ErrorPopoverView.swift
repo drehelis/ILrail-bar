@@ -17,9 +17,7 @@ struct ErrorPopoverView: View {
             HeaderView(
                 fromStationName: fromStationName, 
                 toStationName: toStationName, 
-                onReverseDirection: onReverseDirection,
-                isFromCache: false,
-                cacheAgeMinutes: nil
+                onReverseDirection: onReverseDirection
             )
             
             Divider()
@@ -30,7 +28,7 @@ struct ErrorPopoverView: View {
                 
                 HStack {
                     Spacer()
-                    
+
                     if errorMessage == "No trains found for route" {
                         VStack(spacing: 10) {
                             Image(systemName: "train.side.rear.car")
@@ -38,6 +36,15 @@ struct ErrorPopoverView: View {
                                 .foregroundColor(.secondary)
                             Text(errorMessage)
                                 .foregroundColor(.secondary)
+                            
+                            let preferences = PreferencesManager.shared.preferences
+                            if preferences.walkTimeDurationMin > 0 || preferences.maxTrainChanges != -1 {
+                                VStack(spacing: 5) {
+                                    Text("This may be due to active filters")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
                         }
                     } else {
                         VStack(spacing: 10) {
@@ -54,7 +61,7 @@ struct ErrorPopoverView: View {
                 
                 Spacer()
             }
-            .frame(height: 150)
+            .frame(height: 180)
             
             Divider()
             

@@ -286,7 +286,7 @@ struct PreferencesView: View {
                             }
 
                             HStack(alignment: .center) {
-                                Text("Limit train change")
+                                Text("Limit train change to")
                                     .frame(width: 150, alignment: .leading)
 
                                 Picker("", selection: $maxTrainChanges) {

@@ -28,8 +28,6 @@ struct TrainSchedule: Equatable {
     let toStationName: String
     let trainChanges: Int
     let allTrainNumbers: [String]
-    let isFromCache: Bool
-    let cacheAgeMinutes: Int?
 }
 
 struct TrainResult: Decodable {
