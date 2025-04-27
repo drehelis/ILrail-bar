@@ -197,6 +197,7 @@ class NetworkManager {
                     if let firstTrainData = travel.trains.first {
                         let trainNumberString = String(describing: firstTrainData.trainNumber)
                         let allTrainNumbers = travel.trains.map { String(describing: $0.trainNumber) }
+                        let allPlatforms = travel.trains.compactMap { $0.platform }
                         
                         // We want to show the first train of each travel, with the overall journey time
                         // Instead of checking that both stations match, we'll check the overall journey details
@@ -205,11 +206,12 @@ class NetworkManager {
                             trainNumber: trainNumberString,
                             departureTime: firstTrainData.departureTime,
                             arrivalTime: travel.trains.last?.arrivalTime ?? firstTrainData.arrivalTime, // Use the final arrival time for the complete journey
-                            platform: firstTrainData.platform,
+                            platform: firstTrainData.platform ?? "",
                             fromStationName: firstTrainData.fromStationName ?? preferences.fromStation,
                             toStationName: travel.trains.last?.toStationName ?? firstTrainData.toStationName ?? preferences.toStation,
                             trainChanges: trainChanges,
-                            allTrainNumbers: allTrainNumbers
+                            allTrainNumbers: allTrainNumbers,
+                            allPlatforms: allPlatforms
                         )
                         trainSchedules.append(schedule)
                     }

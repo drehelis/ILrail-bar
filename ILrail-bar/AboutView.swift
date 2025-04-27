@@ -28,9 +28,9 @@ struct AboutView: View {
                         .padding(.vertical, 4)
 
                     HStack(spacing: 5) {
-                        Text("(#)")
+                        Text("(Plat. #)")
                             .fontWeight(.medium)
-                        Text("- Train number")
+                        Text("- Platform number")
                     }
 
                     Divider()

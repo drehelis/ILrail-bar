@@ -13,6 +13,15 @@ BUMP:major - Increases the major version (x.0.0)
 -->
 
 <!-- BUMP:minor -->
+## v2.4.0 - 2024-04-27
+### Changed
+- feat: Add max train changes filter
+- Replaced useless train number with platform number
+
+### Fixed
+- Cache mechanism now actually works
+
+<!-- BUMP:minor -->
 ## v2.3.0 - 2024-04-24
 ### Changed
 - feat: `Walking time duration` - Adjusts schedule accordingly to the time it takes to walk from your location to the station. 

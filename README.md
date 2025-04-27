@@ -54,7 +54,7 @@ To pack DMG file, use `./utils/package_dmg.sh`
 
 1. **Initial Setup**: When you first launch the app, it will appear in your menu bar with a train icon
 2. **View Trains**: Click the icon to open a popover with upcoming train information
-3. **Preferences**: Click the "Preferences" button in the popover to configure your stations, refresh interval, and alerts
+3. **Preferences**: Click the "Preferences" button in the popover to configure your stations, refresh interval, active days and additional filters
 4. **Quick Actions**: 
    - Use the "Reverse Direction" button (↔) to swap departure and arrival stations
    - Click on a train listing to copy its details to your clipboard

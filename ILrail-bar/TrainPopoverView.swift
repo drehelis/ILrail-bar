@@ -173,12 +173,12 @@ struct TrainInfoRow: View {
                                 .foregroundStyle(.secondary)
                                 .id("travel-\(refreshID)")
                             
-                            if train.trainChanges > 0 && !train.allTrainNumbers.isEmpty {
-                                Text("(\(train.allTrainNumbers.map { "#\($0)" }.joined(separator: ", ")))")
+                            if train.trainChanges > 0 && !train.platform.isEmpty && train.allPlatforms.count > 1 {
+                                Text("(Plat. #\(train.allPlatforms.joined(separator: ", ")))")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
-                            } else if !train.trainNumber.isEmpty {
-                                Text("(#\(train.trainNumber))")
+                            } else if !train.platform.isEmpty {
+                                Text("(Plat. #\(train.platform))")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -227,11 +227,11 @@ struct TrainInfoRow: View {
         
         var trainInfo = "\(departureTime) → \(arrivalTime) [\(travelTime)] (\(train.trainChanges))"
         
-        // Add train numbers
-        if train.trainChanges > 0 && !train.allTrainNumbers.isEmpty {
-            trainInfo += " (\(train.allTrainNumbers.map { "#\($0)" }.joined(separator: ", ")))"
-        } else if !train.trainNumber.isEmpty {
-            trainInfo += " (#\(train.trainNumber))"
+        // Add platform numbers
+        if train.trainChanges > 0 && train.allPlatforms.count > 1 {
+            trainInfo += " (Pl. #\(train.allPlatforms.joined(separator: ", ")))"
+        } else if !train.platform.isEmpty {
+            trainInfo += " (Pl. #\(train.platform))"
         }
         
         NSPasteboard.general.clearContents()
@@ -348,7 +348,8 @@ struct TrainPopoverView_Previews: PreviewProvider {
                     fromStationName: "Tel Aviv - Savidor",
                     toStationName: "Haifa - Hof HaCarmel",
                     trainChanges: 0,
-                    allTrainNumbers: ["123"]
+                    allTrainNumbers: ["123"],
+                    allPlatforms: ["1"]
                 ),
                 TrainSchedule(
                     trainNumber: "456",
@@ -358,7 +359,8 @@ struct TrainPopoverView_Previews: PreviewProvider {
                     fromStationName: "Tel Aviv - Savidor",
                     toStationName: "Haifa - Hof HaCarmel",
                     trainChanges: 1,
-                    allTrainNumbers: ["456", "789"]
+                    allTrainNumbers: ["456", "789"],
+                    allPlatforms: ["2", "3"]
                 )
             ],
             fromStationName: "Tel Aviv - Savidor",
