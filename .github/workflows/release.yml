@@ -75,4 +75,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create $NEW_TAG -t $NEW_TAG ./ILrail-bar.dmg
+          gh release create $NEW_TAG -t $NEW_TAG ./ILrail-bar.dmg ./ILrail-bar.pkg

@@ -38,5 +38,8 @@ codesign --verbose=4 --force --deep --sign - ${DMG_TEMP_DIR}/${APP_NAME}.app
 # Create the DMG
 hdiutil create -volname "${APP_NAME}" -srcfolder ${DMG_TEMP_DIR} -ov -format UDZO ${BASE_DIR}/../${APP_NAME}.dmg
 
+# Create the PKG
+pkgbuild --component ${DMG_TEMP_DIR}/${APP_NAME}.app --install-location /Applications --scripts scripts ${APP_NAME}.pkg
+
 echo "Cleaning up temp-dir..."
 rm -rf ${DMG_TEMP_DIR}
