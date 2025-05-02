@@ -252,6 +252,7 @@ struct HeaderView: View {
         self.toStationName = toStationName
         self.isDirectionReversed = isDirectionReversed
         self.onReverseDirection = onReverseDirection
+
         // Initialize the arrow direction based on the current direction state
         _isRightDirection = State(initialValue: !isDirectionReversed)
     }

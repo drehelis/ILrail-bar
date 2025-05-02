@@ -519,7 +519,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             let departureTimeString = DateFormatters.timeFormatter.string(from: train.departureTime)
             let preferences = PreferencesManager.shared.preferences
             
-            // Add arrow direction indicator based on direction preference
             let directionArrow = preferences.isDirectionReversed ? "← " : "→ "
             let displayString = "\(departureTimeString) \(directionArrow)"
             
@@ -531,7 +530,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
                 .foregroundColor: NSColor.labelColor
             ]
             
-            // Use a consistent width for the text
             button.attributedTitle = NSAttributedString(
                 string: displayString,
                 attributes: attributes
@@ -630,7 +628,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
     private func reverseTrainDirection() {
         let preferences = PreferencesManager.shared.preferences
         
-        // Instead of swapping stations, just toggle the direction flag
         logInfo("Toggling train direction")
         
         PreferencesManager.shared.savePreferences(

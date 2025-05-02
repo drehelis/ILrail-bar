@@ -19,12 +19,12 @@ struct StationPreferences: Codable {
         upcomingItemsCount: 3,
         launchAtLogin: false,
         refreshInterval: 600,
-        activeDays: [true, true, true, true, true, false, false], // All days active by default
-        activeStartHour: 6, // 6 AM
-        activeEndHour: 23, // 11 PM
-        walkTimeDurationMin: 0, // Default to 0 minutes
-        maxTrainChanges: -1, // Default to allow any number of train changes (unlimited)
-        isDirectionReversed: false // Default direction
+        activeDays: [true, true, true, true, true, false, false],
+        activeStartHour: 6,
+        activeEndHour: 23,
+        walkTimeDurationMin: 0,
+        maxTrainChanges: -1,
+        isDirectionReversed: false
     )
 }
 
