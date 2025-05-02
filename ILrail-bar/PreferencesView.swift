@@ -115,6 +115,7 @@ struct PreferencesView: View {
     @State private var activeEndHour: Int
     @State private var walkTimeDurationMin: Int
     @State private var maxTrainChanges: Int
+    @State private var isDirectionReversed: Bool
     @State private var stations: [Station] = Station.allStations
     @State private var isLoading: Bool = false
     @State private var showAdditionalFilters: Bool = false // Added state for the disclosure group
@@ -125,8 +126,16 @@ struct PreferencesView: View {
     
     init(onSave: @escaping () -> Void = {}, onCancel: @escaping () -> Void = {}) {
         let preferences = PreferencesManager.shared.preferences
-        _selectedFromStation = State(initialValue: preferences.fromStation)
-        _selectedToStation = State(initialValue: preferences.toStation)
+        
+        // If direction is reversed, we need to swap from/to stations in the UI
+        if preferences.isDirectionReversed {
+            _selectedFromStation = State(initialValue: preferences.toStation)
+            _selectedToStation = State(initialValue: preferences.fromStation)
+        } else {
+            _selectedFromStation = State(initialValue: preferences.fromStation)
+            _selectedToStation = State(initialValue: preferences.toStation)
+        }
+        
         _upcomingItemsCount = State(initialValue: preferences.upcomingItemsCount)
         _launchAtLogin = State(initialValue: preferences.launchAtLogin)
         _refreshInterval = State(initialValue: preferences.refreshInterval)
@@ -135,6 +144,7 @@ struct PreferencesView: View {
         _activeEndHour = State(initialValue: preferences.activeEndHour)
         _walkTimeDurationMin = State(initialValue: preferences.walkTimeDurationMin)
         _maxTrainChanges = State(initialValue: preferences.maxTrainChanges)
+        _isDirectionReversed = State(initialValue: preferences.isDirectionReversed)
         self.onSave = onSave
         self.onCancel = onCancel
     }
@@ -313,10 +323,11 @@ struct PreferencesView: View {
                 .frame(width: 100)
                 
                 Button("Save") {
-                    // Save preferences
+                    // When saving from preferences, we always save with direction normalized
+                    // (the UI stations reflect the actual route direction)
                     PreferencesManager.shared.savePreferences(
-                        fromStation: selectedFromStation,
-                        toStation: selectedToStation,
+                        fromStation: isDirectionReversed ? selectedToStation : selectedFromStation,
+                        toStation: isDirectionReversed ? selectedFromStation : selectedToStation,
                         upcomingItemsCount: upcomingItemsCount,
                         launchAtLogin: launchAtLogin,
                         refreshInterval: refreshInterval,
@@ -324,7 +335,8 @@ struct PreferencesView: View {
                         activeStartHour: activeStartHour,
                         activeEndHour: activeEndHour,
                         walkTimeDurationMin: walkTimeDurationMin,
-                        maxTrainChanges: maxTrainChanges
+                        maxTrainChanges: maxTrainChanges,
+                        isDirectionReversed: isDirectionReversed
                     )
                     
                     // Configure launch at login

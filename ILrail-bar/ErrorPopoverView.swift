@@ -16,7 +16,8 @@ struct ErrorPopoverView: View {
         VStack(alignment: .leading, spacing: 0) {
             HeaderView(
                 fromStationName: fromStationName, 
-                toStationName: toStationName, 
+                toStationName: toStationName,
+                isDirectionReversed: PreferencesManager.shared.preferences.isDirectionReversed,
                 onReverseDirection: onReverseDirection
             )
             

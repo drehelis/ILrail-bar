@@ -11,6 +11,7 @@ struct StationPreferences: Codable {
     var activeEndHour: Int
     var walkTimeDurationMin: Int
     var maxTrainChanges: Int
+    var isDirectionReversed: Bool
     
     static let defaultPreferences = StationPreferences(
         fromStation: "3700",
@@ -22,7 +23,8 @@ struct StationPreferences: Codable {
         activeStartHour: 6, // 6 AM
         activeEndHour: 23, // 11 PM
         walkTimeDurationMin: 0, // Default to 0 minutes
-        maxTrainChanges: -1 // Default to allow any number of train changes (unlimited)
+        maxTrainChanges: -1, // Default to allow any number of train changes (unlimited)
+        isDirectionReversed: false // Default direction
     )
 }
 
@@ -52,7 +54,7 @@ class PreferencesManager {
     func savePreferences(fromStation: String, toStation: String, upcomingItemsCount: Int = 3, 
                          launchAtLogin: Bool = false, 
                          refreshInterval: Int = 300, activeDays: [Bool]? = nil, activeStartHour: Int = 6, activeEndHour: Int = 23,
-                         walkTimeDurationMin: Int = 0, maxTrainChanges: Int = -1) {
+                         walkTimeDurationMin: Int = 0, maxTrainChanges: Int = -1, isDirectionReversed: Bool? = nil) {
         let currentPrefs = preferences
         preferences = StationPreferences(
             fromStation: fromStation, 
@@ -64,7 +66,8 @@ class PreferencesManager {
             activeStartHour: activeStartHour,
             activeEndHour: activeEndHour,
             walkTimeDurationMin: walkTimeDurationMin,
-            maxTrainChanges: maxTrainChanges
+            maxTrainChanges: maxTrainChanges,
+            isDirectionReversed: isDirectionReversed ?? currentPrefs.isDirectionReversed
         )
     }
 }

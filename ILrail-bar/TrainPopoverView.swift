@@ -41,6 +41,7 @@ struct TrainPopoverView: View {
             HeaderView(
                 fromStationName: fromStationName,
                 toStationName: toStationName,
+                isDirectionReversed: PreferencesManager.shared.preferences.isDirectionReversed,
                 onReverseDirection: onReverseDirection
             )
             
@@ -242,12 +243,30 @@ struct TrainInfoRow: View {
 struct HeaderView: View {
     let fromStationName: String
     let toStationName: String
+    let isDirectionReversed: Bool
     let onReverseDirection: () -> Void
+    @State private var isRightDirection: Bool
+    
+    init(fromStationName: String, toStationName: String, isDirectionReversed: Bool, onReverseDirection: @escaping () -> Void) {
+        self.fromStationName = fromStationName
+        self.toStationName = toStationName
+        self.isDirectionReversed = isDirectionReversed
+        self.onReverseDirection = onReverseDirection
+        // Initialize the arrow direction based on the current direction state
+        _isRightDirection = State(initialValue: !isDirectionReversed)
+    }
     
     var body: some View {
-        Button(action: onReverseDirection) {
+        Button(action: {
+            isRightDirection.toggle()
+            onReverseDirection()
+        }) {
             HStack {
-                Text("\(fromStationName) → \(toStationName)")
+                Text("\(fromStationName)")
+                    .lineLimit(1)
+                Text(isRightDirection ? "→" : "←")
+                    .foregroundStyle(.secondary)
+                Text("\(toStationName)")
                     .lineLimit(1)
                 Spacer()
                 Image(systemName: "arrow.left.arrow.right")
@@ -256,7 +275,7 @@ struct HeaderView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(AccessoryBarButtonStyle())
-        .help("\(fromStationName) → \(toStationName)")
+        .help("\(fromStationName) \(isRightDirection ? "→" : "←") \(toStationName)")
         .padding(EdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 0))
     }
 }

@@ -517,6 +517,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             }
             
             let departureTimeString = DateFormatters.timeFormatter.string(from: train.departureTime)
+            let preferences = PreferencesManager.shared.preferences
+            
+            // Add arrow direction indicator based on direction preference
+            let directionArrow = preferences.isDirectionReversed ? "← " : "→ "
+            let displayString = "\(departureTimeString) \(directionArrow)"
             
             // Use a monospaced font to ensure consistent width
             let font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
@@ -528,7 +533,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             
             // Use a consistent width for the text
             button.attributedTitle = NSAttributedString(
-                string: departureTimeString,
+                string: displayString,
                 attributes: attributes
             )
         }
@@ -587,10 +592,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
         let components = timeStr.split(separator: ":")
         let (hours, minutes) = (String(components[0]), String(components[1]))
         
+        // Determine which stations to use based on the direction flag
+        let fromStationId = preferences.isDirectionReversed ? preferences.toStation : preferences.fromStation
+        let toStationId = preferences.isDirectionReversed ? preferences.fromStation : preferences.toStation
+        
         let officialSiteUrl = URL(string: "https://www.rail.co.il/?" +
                                  "page=routePlanSearchResults" +
-                                 "&fromStation=\(preferences.fromStation)" +
-                                 "&toStation=\(preferences.toStation)" +
+                                 "&fromStation=\(fromStationId)" +
+                                 "&toStation=\(toStationId)" +
                                  "&date=\(currentDateStr)" +
                                  "&hours=\(hours)" +
                                  "&minutes=\(minutes)" +
@@ -621,14 +630,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
     private func reverseTrainDirection() {
         let preferences = PreferencesManager.shared.preferences
         
-        let oldFromStation = preferences.fromStation
-        let oldToStation = preferences.toStation
-        
-        logInfo("Reversing train direction: \(oldFromStation) ↔ \(oldToStation)")
+        // Instead of swapping stations, just toggle the direction flag
+        logInfo("Toggling train direction")
         
         PreferencesManager.shared.savePreferences(
-            fromStation: oldToStation,
-            toStation: oldFromStation,
+            fromStation: preferences.fromStation,
+            toStation: preferences.toStation,
             upcomingItemsCount: preferences.upcomingItemsCount,
             launchAtLogin: preferences.launchAtLogin,
             refreshInterval: preferences.refreshInterval,
@@ -636,7 +643,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             activeStartHour: preferences.activeStartHour,
             activeEndHour: preferences.activeEndHour,
             walkTimeDurationMin: preferences.walkTimeDurationMin,
-            maxTrainChanges: preferences.maxTrainChanges
+            maxTrainChanges: preferences.maxTrainChanges,
+            isDirectionReversed: !preferences.isDirectionReversed
         )
         
         // Trigger a refresh to update the train schedule

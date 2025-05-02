@@ -12,6 +12,13 @@ BUMP:minor - Increases the minor version (0.x.0)
 BUMP:major - Increases the major version (x.0.0)
 -->
 
+<!-- BUMP:minor -->
+## v2.5.0 - 2025-05-02
+### Changed
+- Improved direction reversal UX: Now only the arrow changes direction (→/←) while preserving station order in UI
+- Added direction indicator to menu bar for better visibility
+- Internal refactoring for direction handling with preferences synchronization
+
 <!-- BUMP:patch -->
 ## v2.4.1 - 2024-04-29
 ### Added

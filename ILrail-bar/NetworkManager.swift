@@ -159,8 +159,12 @@ class NetworkManager {
         
         let preferences = PreferencesManager.shared.preferences
         
-        // Generate a cache key based on from/to stations
-        let cacheKey = getTimetableCacheKey(fromStation: preferences.fromStation, toStation: preferences.toStation)
+        // Determine which stations to use based on the direction flag
+        let fromStationId = preferences.isDirectionReversed ? preferences.toStation : preferences.fromStation
+        let toStationId = preferences.isDirectionReversed ? preferences.fromStation : preferences.toStation
+        
+        // Generate a cache key based on actual from/to stations used
+        let cacheKey = getTimetableCacheKey(fromStation: fromStationId, toStation: toStationId)
         
         // Create a function to process API response data
         let processData = { (data: Data) -> [TrainSchedule] in
@@ -276,8 +280,8 @@ class NetworkManager {
         
         var components = URLComponents(string: timetableBaseURL)
         components?.queryItems = [
-            URLQueryItem(name: "fromStation", value: preferences.fromStation),
-            URLQueryItem(name: "toStation", value: preferences.toStation),
+            URLQueryItem(name: "fromStation", value: fromStationId),
+            URLQueryItem(name: "toStation", value: toStationId),
             URLQueryItem(name: "date", value: currentDate),
             URLQueryItem(name: "hour", value: currentTime),
             URLQueryItem(name: "scheduleType", value: scheduleType),
