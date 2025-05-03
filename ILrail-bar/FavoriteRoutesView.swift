@@ -185,7 +185,7 @@ struct FavoriteRoutesMenu: View {
                         // Get display names for the stations
                         let fromStationName = stations.first { $0.id == route.fromStation }?.name ?? route.fromStation
                         let toStationName = stations.first { $0.id == route.toStation }?.name ?? route.toStation
-                        
+
                         Label(
                             title: { Text("\(route.name) (\(fromStationName) \(route.isDirectionReversed ? "←" : "→") \(toStationName))") },
                             icon: { Image(systemName: "star.fill") }

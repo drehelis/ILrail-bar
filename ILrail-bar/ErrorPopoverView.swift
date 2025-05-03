@@ -11,6 +11,7 @@ struct ErrorPopoverView: View {
     let onWebsite: () -> Void
     let onAbout: () -> Void
     let onQuit: () -> Void
+    let onSelectFavoriteRoute: (String) -> Void // Added property for favorite route selection
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -18,7 +19,10 @@ struct ErrorPopoverView: View {
                 fromStationName: fromStationName, 
                 toStationName: toStationName,
                 isDirectionReversed: PreferencesManager.shared.preferences.isDirectionReversed,
-                onReverseDirection: onReverseDirection
+                favoriteRoutes: PreferencesManager.shared.preferences.favoriteRoutes,
+                stations: Station.allStations,
+                onReverseDirection: onReverseDirection,
+                onSelectFavoriteRoute: onSelectFavoriteRoute
             )
             
             Divider()
@@ -99,7 +103,8 @@ struct ErrorPopoverView_Previews: PreviewProvider {
             onPreferences: {},
             onWebsite: {},
             onAbout: {},
-            onQuit: {}
+            onQuit: {},
+            onSelectFavoriteRoute: { _ in }
         )
     }
 }

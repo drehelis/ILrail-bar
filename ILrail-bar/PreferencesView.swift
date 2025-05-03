@@ -118,10 +118,11 @@ struct PreferencesView: View {
     @State private var isDirectionReversed: Bool
     @State private var stations: [Station] = Station.allStations
     @State private var isLoading: Bool = false
-    @State private var showAdditionalFilters: Bool = false // Added state for the disclosure group
+    @State private var showAdditionalFilters: Bool = false
     @State private var showSaveRouteDialog: Bool = false
     @State private var showManageRoutesDialog: Bool = false
-    @State private var favoriteRoutes: [FavoriteRoute] = [] // Add state to track favorite routes
+    @State private var favoriteRoutes: [FavoriteRoute] = []
+    @State private var selectedFavoriteRouteName: String = ""
     
     // Callback functions for popover actions
     let onSave: () -> Void
@@ -185,62 +186,61 @@ struct PreferencesView: View {
                     )
                     
                     // Favorite Routes Management
-                    HStack(alignment: .center) {
-                        Text("Saved Routes")
-                            .frame(width: 150, alignment: .leading)
+                    HStack {
+                        Spacer()
                         
-                        HStack {
-                            Menu {
-                                if favoriteRoutes.isEmpty {
-                                    Text("No saved routes")
-                                        .foregroundColor(.secondary)
-                                } else {
-                                    ForEach(favoriteRoutes) { route in
-                                        Button {
-                                            applyFavoriteRoute(route.id)
-                                        } label: {
-                                            let fromStationName = stations.first { $0.id == route.fromStation }?.name ?? route.fromStation
-                                            let toStationName = stations.first { $0.id == route.toStation }?.name ?? route.toStation
-                                            
-                                            Text("\(route.name) (\(fromStationName) \(route.isDirectionReversed ? "←" : "→") \(toStationName))")
-                                        }
-                                    }
-                                }
-                                
-                                Divider()
-                                
-                                Button {
-                                    showSaveRouteDialog = true
-                                } label: {
-                                    Label("Save Current Route", systemImage: "plus.circle")
-                                }
-                                
-                                Button {
-                                    showManageRoutesDialog = true
-                                } label: {
-                                    Label("Manage Routes", systemImage: "list.bullet")
-                                }
-                                
-                            } label: {
-                                HStack {
-                                    Text("Select Route")
-                                    Spacer()
-                                    Image(systemName: "chevron.down")
-                                }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 6)
-                                .background(Color(NSColor.controlBackgroundColor))
-                                .cornerRadius(4)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .stroke(Color(NSColor.separatorColor), lineWidth: 1)
-                                )
+                        Button(action: {
+                            showSaveRouteDialog = true
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "plus")
+                                    .font(.caption)
+                                Text("Add Route to Favorites")
+                                    .font(.callout)
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color.blue.opacity(0.2))
+                            .cornerRadius(6)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(Color.blue, lineWidth: 1)
+                            )
                         }
+                        .buttonStyle(PlainButtonStyle())
+
+                        Spacer().frame(width: 10)
+
+                        // Manage Routes Button
+                        Button(action: {
+                            showManageRoutesDialog = true
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "list.bullet")
+                                    .font(.caption)
+                                Text("Manage")
+                                    .font(.callout)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color.secondary.opacity(0.1))
+                            .cornerRadius(6)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .help("View, edit or delete saved routes")
+                        
+                        Spacer()
                     }
+                    .padding(.vertical, 4)
+
+                    Divider()
 
                     HStack(alignment: .center) {
+
                         Text("Walking time duration")
                             .frame(width: 150, alignment: .leading)
                             .help("The time it takes to walk from your location to the station. Adjusts schedule accordingly.")
@@ -550,6 +550,7 @@ struct PreferencesView: View {
         selectedFromStation = route.fromStation
         selectedToStation = route.toStation
         isDirectionReversed = route.isDirectionReversed
+        selectedFavoriteRouteName = route.name
     }
 }
 

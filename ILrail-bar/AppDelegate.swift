@@ -319,6 +319,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
                 },
                 onQuit: {
                     NSApplication.shared.terminate(nil)
+                },
+                onSelectFavoriteRoute: { [weak self] routeId in
+                    self?.selectFavoriteRoute(routeId)
                 }
             )
             
@@ -680,8 +683,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             // Trigger a refresh to show trains for the selected route
             NotificationCenter.default.post(name: .reloadPreferencesChanged, object: nil)
             
-            // Close the popover when a route is selected to avoid UI clutter
-            closePopover()
+            if popover.isShown {
+                updatePopoverContent()
+            }
         }
     }
 }
