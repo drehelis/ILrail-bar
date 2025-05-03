@@ -11,6 +11,10 @@ struct TrainPopoverView: View {
     let onWebsite: () -> Void
     let onAbout: () -> Void
     let onQuit: () -> Void
+    let onSelectFavoriteRoute: (String) -> Void
+    
+    @State private var showSaveRouteDialog: Bool = false
+    @State private var showManageRoutesDialog: Bool = false
     
     init(trainSchedules: [TrainSchedule], 
          fromStationName: String,
@@ -22,7 +26,8 @@ struct TrainPopoverView: View {
          onPreferences: @escaping () -> Void,
          onWebsite: @escaping () -> Void,
          onAbout: @escaping () -> Void,
-         onQuit: @escaping () -> Void) {
+         onQuit: @escaping () -> Void,
+         onSelectFavoriteRoute: @escaping (String) -> Void) {
         self.trainSchedules = trainSchedules
         self.fromStationName = fromStationName
         self.toStationName = toStationName
@@ -33,6 +38,7 @@ struct TrainPopoverView: View {
         self.onWebsite = onWebsite
         self.onAbout = onAbout
         self.onQuit = onQuit
+        self.onSelectFavoriteRoute = onSelectFavoriteRoute
     }
     
     var body: some View {
@@ -131,6 +137,21 @@ struct TrainPopoverView: View {
         }
         .frame(width: 350)
         .background(Color(NSColor.windowBackgroundColor))
+        .sheet(isPresented: $showSaveRouteDialog) {
+            SaveRouteView(
+                isPresented: $showSaveRouteDialog,
+                stations: Station.allStations,
+                onSave: { routeName in
+                    PreferencesManager.shared.saveCurrentRouteAsFavorite(name: routeName)
+                }
+            )
+        }
+        .sheet(isPresented: $showManageRoutesDialog) {
+            ManageFavoritesView(
+                isPresented: $showManageRoutesDialog,
+                stations: Station.allStations
+            )
+        }
     }
 }
 
@@ -392,7 +413,8 @@ struct TrainPopoverView_Previews: PreviewProvider {
             onPreferences: {},
             onWebsite: {},
             onAbout: {},
-            onQuit: {}
+            onQuit: {},
+            onSelectFavoriteRoute: { _ in }
         )
     }
 }

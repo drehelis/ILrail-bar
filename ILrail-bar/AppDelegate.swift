@@ -276,6 +276,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
                 },
                 onQuit: {
                     NSApplication.shared.terminate(nil)
+                },
+                onSelectFavoriteRoute: { [weak self] routeId in
+                    self?.selectFavoriteRoute(routeId)
                 }
             )
             
@@ -519,7 +522,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             let departureTimeString = DateFormatters.timeFormatter.string(from: train.departureTime)
             let preferences = PreferencesManager.shared.preferences
             
-            let directionArrow = preferences.isDirectionReversed ? "← " : "→ "
+            let directionArrow = preferences.isDirectionReversed ? "⤌" : "⤍"
             let displayString = "\(departureTimeString) \(directionArrow)"
             
             // Use a monospaced font to ensure consistent width
@@ -667,6 +670,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
         let isInActiveHours = hour >= preferences.activeStartHour && hour <= preferences.activeEndHour
         
         return isInActiveHours
+    }
+    
+    private func selectFavoriteRoute(_ routeId: String) {
+        logInfo("Selecting favorite route with ID: \(routeId)")
+        
+        // Apply the favorite route - this changes the current stations
+        if PreferencesManager.shared.applyFavoriteRoute(id: routeId) {
+            // Trigger a refresh to show trains for the selected route
+            NotificationCenter.default.post(name: .reloadPreferencesChanged, object: nil)
+            
+            // Close the popover when a route is selected to avoid UI clutter
+            closePopover()
+        }
     }
 }
 

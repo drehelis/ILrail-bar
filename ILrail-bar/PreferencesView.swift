@@ -119,6 +119,9 @@ struct PreferencesView: View {
     @State private var stations: [Station] = Station.allStations
     @State private var isLoading: Bool = false
     @State private var showAdditionalFilters: Bool = false // Added state for the disclosure group
+    @State private var showSaveRouteDialog: Bool = false
+    @State private var showManageRoutesDialog: Bool = false
+    @State private var favoriteRoutes: [FavoriteRoute] = [] // Add state to track favorite routes
     
     // Callback functions for popover actions
     let onSave: () -> Void
@@ -145,6 +148,7 @@ struct PreferencesView: View {
         _walkTimeDurationMin = State(initialValue: preferences.walkTimeDurationMin)
         _maxTrainChanges = State(initialValue: preferences.maxTrainChanges)
         _isDirectionReversed = State(initialValue: preferences.isDirectionReversed)
+        _favoriteRoutes = State(initialValue: preferences.favoriteRoutes) // Initialize favorite routes
         self.onSave = onSave
         self.onCancel = onCancel
     }
@@ -179,6 +183,62 @@ struct PreferencesView: View {
                         stations: stations,
                         selectedStationId: $selectedToStation
                     )
+                    
+                    // Favorite Routes Management
+                    HStack(alignment: .center) {
+                        Text("Saved Routes")
+                            .frame(width: 150, alignment: .leading)
+                        
+                        HStack {
+                            Menu {
+                                if favoriteRoutes.isEmpty {
+                                    Text("No saved routes")
+                                        .foregroundColor(.secondary)
+                                } else {
+                                    ForEach(favoriteRoutes) { route in
+                                        Button {
+                                            applyFavoriteRoute(route.id)
+                                        } label: {
+                                            let fromStationName = stations.first { $0.id == route.fromStation }?.name ?? route.fromStation
+                                            let toStationName = stations.first { $0.id == route.toStation }?.name ?? route.toStation
+                                            
+                                            Text("\(route.name) (\(fromStationName) \(route.isDirectionReversed ? "←" : "→") \(toStationName))")
+                                        }
+                                    }
+                                }
+                                
+                                Divider()
+                                
+                                Button {
+                                    showSaveRouteDialog = true
+                                } label: {
+                                    Label("Save Current Route", systemImage: "plus.circle")
+                                }
+                                
+                                Button {
+                                    showManageRoutesDialog = true
+                                } label: {
+                                    Label("Manage Routes", systemImage: "list.bullet")
+                                }
+                                
+                            } label: {
+                                HStack {
+                                    Text("Select Route")
+                                    Spacer()
+                                    Image(systemName: "chevron.down")
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 6)
+                                .background(Color(NSColor.controlBackgroundColor))
+                                .cornerRadius(4)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                                )
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
 
                     HStack(alignment: .center) {
                         Text("Walking time duration")
@@ -359,6 +419,57 @@ struct PreferencesView: View {
         .onAppear {
             loadStations()
         }
+        .sheet(isPresented: $showSaveRouteDialog) {
+            SaveRouteView(
+                isPresented: $showSaveRouteDialog,
+                stations: stations,
+                onSave: { routeName in
+                    // Save current selections as favorite route exactly as shown in the UI
+                    // Always use the stations as they appear in the UI fields, regardless of direction flag
+                    
+                    // Create a new favorite route with the current station selections
+                    let newRoute = FavoriteRoute(
+                        name: routeName,
+                        fromStation: selectedFromStation,
+                        toStation: selectedToStation,
+                        isDirectionReversed: isDirectionReversed
+                    )
+                    
+                    // Save to preferences
+                    var updatedRoutes = PreferencesManager.shared.preferences.favoriteRoutes
+                    
+                    // Replace if a route with the same name exists, otherwise add
+                    if let index = updatedRoutes.firstIndex(where: { $0.name == routeName }) {
+                        updatedRoutes[index] = newRoute
+                    } else {
+                        updatedRoutes.append(newRoute)
+                    }
+                    
+                    // Sort by name
+                    updatedRoutes.sort { $0.name < $1.name }
+                    
+                    // Save the updated routes to preferences
+                    PreferencesManager.shared.savePreferences(
+                        fromStation: PreferencesManager.shared.preferences.fromStation,
+                        toStation: PreferencesManager.shared.preferences.toStation,
+                        favoriteRoutes: updatedRoutes
+                    )
+                    
+                    // Refresh the local list
+                    favoriteRoutes = updatedRoutes
+                }
+            )
+        }
+        .sheet(isPresented: $showManageRoutesDialog) {
+            ManageFavoritesView(
+                isPresented: $showManageRoutesDialog,
+                stations: stations,
+                onRoutesChanged: {
+                    // Refresh favorite routes list when routes are edited or deleted
+                    favoriteRoutes = PreferencesManager.shared.preferences.favoriteRoutes
+                }
+            )
+        }
     }
     
     private func loadStations() {
@@ -429,6 +540,16 @@ struct PreferencesView: View {
         formatter.dateFormat = "h a"
         let date = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: Date())!
         return formatter.string(from: date)
+    }
+    
+    private func applyFavoriteRoute(_ routeId: String) {
+        guard let route = PreferencesManager.shared.preferences.favoriteRoutes.first(where: { $0.id == routeId }) else {
+            return
+        }
+        
+        selectedFromStation = route.fromStation
+        selectedToStation = route.toStation
+        isDirectionReversed = route.isDirectionReversed
     }
 }
 
