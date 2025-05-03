@@ -329,7 +329,7 @@ struct HeaderView: View {
 
                             Label(
                                 title: { Text("\(route.name)") },
-                                icon: { Image(systemName: "star.fill") }
+                                icon: { Image(systemName: "star") }
                             ).help("\(fromStationName) \(route.isDirectionReversed ? "←" : "→") \(toStationName)")
                         }
                     }

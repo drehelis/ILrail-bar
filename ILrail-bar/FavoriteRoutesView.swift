@@ -53,9 +53,6 @@ struct ManageFavoritesView: View {
     let onRoutesChanged: () -> Void
     
     @State private var favoriteRoutes: [FavoriteRoute]
-    @State private var editingRoute: FavoriteRoute?
-    @State private var showingEditDialog = false
-    @State private var editingRouteName = ""
     
     init(isPresented: Binding<Bool>, stations: [Station], onRoutesChanged: @escaping () -> Void = {}) {
         self._isPresented = isPresented
@@ -93,14 +90,6 @@ struct ManageFavoritesView: View {
                             Spacer()
                             
                             Button {
-                                editRoute(route)
-                            } label: {
-                                Image(systemName: "pencil")
-                                    .foregroundColor(.blue)
-                            }
-                            .buttonStyle(BorderlessButtonStyle())
-                            
-                            Button {
                                 deleteRoute(route)
                             } label: {
                                 Image(systemName: "trash")
@@ -124,36 +113,6 @@ struct ManageFavoritesView: View {
         }
         .padding()
         .frame(width: 360)
-        .sheet(isPresented: $showingEditDialog) {
-            SaveRouteView(
-                isPresented: $showingEditDialog,
-                stations: stations,
-                initialRouteName: editingRouteName,
-                onSave: saveRouteNameEdit
-            )
-        }
-    }
-    
-    private func editRoute(_ route: FavoriteRoute) {
-        editingRoute = route
-        editingRouteName = route.name
-        showingEditDialog = true
-    }
-    
-    private func saveRouteNameEdit(_ newName: String) {
-        guard let route = editingRoute else { return }
-        
-        PreferencesManager.shared.updateFavoriteRoute(
-            id: route.id,
-            name: newName,
-            fromStation: route.fromStation,
-            toStation: route.toStation,
-            isDirectionReversed: route.isDirectionReversed
-        )
-        
-        // Update the local array
-        favoriteRoutes = PreferencesManager.shared.preferences.favoriteRoutes
-        onRoutesChanged()
     }
     
     private func deleteRoute(_ route: FavoriteRoute) {
@@ -188,7 +147,7 @@ struct FavoriteRoutesMenu: View {
 
                         Label(
                             title: { Text("\(route.name) (\(fromStationName) \(route.isDirectionReversed ? "←" : "→") \(toStationName))") },
-                            icon: { Image(systemName: "star.fill") }
+                            icon: { Image(systemName: "star") }
                         )
                     }
                 }
