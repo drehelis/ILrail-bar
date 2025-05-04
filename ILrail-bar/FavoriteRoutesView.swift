@@ -18,9 +18,6 @@ struct SaveRouteView: View {
     
     var body: some View {
         VStack(spacing: 16) {
-            Text("Save Favorite Route")
-                .font(.headline)
-            
             TextField("Route Name (e.g. Home, Work)", text: $routeName)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
                 .frame(width: 250)
@@ -63,10 +60,6 @@ struct ManageFavoritesView: View {
     
     var body: some View {
         VStack(spacing: 12) {
-            Text("Manage Favorite Routes")
-                .font(.headline)
-                .padding(.bottom, 8)
-            
             if favoriteRoutes.isEmpty {
                 Text("No saved routes")
                     .foregroundColor(.secondary)
@@ -121,60 +114,5 @@ struct ManageFavoritesView: View {
         // Update the local array
         favoriteRoutes = PreferencesManager.shared.preferences.favoriteRoutes
         onRoutesChanged()
-    }
-}
-
-struct FavoriteRoutesMenu: View {
-    let favoriteRoutes: [FavoriteRoute]
-    let stations: [Station]
-    let onRouteSelected: (String) -> Void
-    let onAddFavorite: () -> Void
-    let onManageFavorites: () -> Void
-    
-    var body: some View {
-        Menu {
-            if favoriteRoutes.isEmpty {
-                Text("No saved routes")
-                    .foregroundColor(.secondary)
-            } else {
-                ForEach(favoriteRoutes) { route in
-                    Button {
-                        onRouteSelected(route.id)
-                    } label: {
-                        // Get display names for the stations
-                        let fromStationName = stations.first { $0.id == route.fromStation }?.name ?? route.fromStation
-                        let toStationName = stations.first { $0.id == route.toStation }?.name ?? route.toStation
-
-                        Label(
-                            title: { Text("\(route.name) (\(fromStationName) \(route.isDirectionReversed ? "←" : "→") \(toStationName))") },
-                            icon: { Image(systemName: "star") }
-                        )
-                    }
-                }
-            }
-            
-            Divider()
-            
-            Button {
-                onAddFavorite()
-            } label: {
-                Label("Save Current Route", systemImage: "plus.circle")
-            }
-            
-            Button {
-                onManageFavorites()
-            } label: {
-                Label("Manage Favorites", systemImage: "list.bullet")
-            }
-            
-        } label: {
-            HStack(spacing: 2) {
-                Image(systemName: "star")
-                Text("Routes")
-                    .font(.callout)
-            }
-        }
-        .menuStyle(BorderlessButtonMenuStyle())
-        .buttonStyle(LinkButtonStyle())
     }
 }

@@ -192,7 +192,7 @@ struct PreferencesView: View {
                             HStack(spacing: 4) {
                                 Image(systemName: "plus")
                                     .font(.caption)
-                                Text("Add Route to Favorites")
+                                Text("Add to Favorites")
                                     .font(.callout)
                             }
                             .padding(.horizontal, 10)

@@ -540,6 +540,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
                 string: displayString,
                 attributes: attributes
             )
+
+            setStationDirectionsTooltip(for: button)
         }
     }
     
@@ -564,6 +566,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
                     NSAttributedString.Key.font: font
                 ]
             )
+
+            setStationDirectionsTooltip(for: button)
         }
     }
         
@@ -687,6 +691,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
                 updatePopoverContent()
             }
         }
+    }
+
+    private func setStationDirectionsTooltip(for button: NSStatusBarButton) {
+        let preferences = PreferencesManager.shared.preferences
+        let stations = Station.allStations
+        let fromStation = stations.first(where: { $0.id == preferences.fromStation })?.name ?? preferences.fromStation
+        let toStation = stations.first(where: { $0.id == preferences.toStation })?.name ?? preferences.toStation
+        let directionArrow = preferences.isDirectionReversed ? "←" : "→"
+        let directionText = "\(fromStation) \(directionArrow) \(toStation)"
+        button.toolTip = directionText
     }
 }
 
