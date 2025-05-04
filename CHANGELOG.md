@@ -13,6 +13,11 @@ BUMP:major - Increases the major version (x.0.0)
 -->
 
 <!-- BUMP:minor -->
+## v2.6.0 - 2025-05-04
+### Added
+- Favorite Routes: Save and quickly access your frequently used train routes
+
+<!-- BUMP:minor -->
 ## v2.5.0 - 2025-05-02
 ### Changed
 - Improved direction reversal UX: Now only the arrow changes direction (→/←) while preserving station order in UI
