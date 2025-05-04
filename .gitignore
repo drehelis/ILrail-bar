@@ -72,3 +72,6 @@ Temporary Items
 
 # Archives & artifacts
 *.dmg
+
+# Copilot instructions
+.github/copilot-instructions.md

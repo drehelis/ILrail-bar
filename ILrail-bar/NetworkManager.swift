@@ -19,7 +19,6 @@ class NetworkManager {
         case decodingError
         case serverError(String)
         case cacheError
-        case cacheTooOld
     }
     
     private struct CacheKeys {

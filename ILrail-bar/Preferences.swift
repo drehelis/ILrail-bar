@@ -32,7 +32,6 @@ struct StationPreferences: Codable {
     var walkTimeDurationMin: Int
     var maxTrainChanges: Int
     var isDirectionReversed: Bool
-    var enableSmartDirection: Bool
     var favoriteRoutes: [FavoriteRoute]
     
     static let defaultPreferences = StationPreferences(
@@ -47,7 +46,6 @@ struct StationPreferences: Codable {
         walkTimeDurationMin: 0,
         maxTrainChanges: -1,
         isDirectionReversed: false,
-        enableSmartDirection: false,
         favoriteRoutes: []
     )
 }
@@ -79,7 +77,7 @@ class PreferencesManager {
                          launchAtLogin: Bool = false, 
                          refreshInterval: Int = 300, activeDays: [Bool]? = nil, activeStartHour: Int = 6, activeEndHour: Int = 23,
                          walkTimeDurationMin: Int = 0, maxTrainChanges: Int = -1, isDirectionReversed: Bool? = nil,
-                         enableSmartDirection: Bool? = nil, favoriteRoutes: [FavoriteRoute]? = nil) {
+                         favoriteRoutes: [FavoriteRoute]? = nil) {
         let currentPrefs = preferences
         preferences = StationPreferences(
             fromStation: fromStation, 
@@ -93,7 +91,6 @@ class PreferencesManager {
             walkTimeDurationMin: walkTimeDurationMin,
             maxTrainChanges: maxTrainChanges,
             isDirectionReversed: isDirectionReversed ?? currentPrefs.isDirectionReversed,
-            enableSmartDirection: enableSmartDirection ?? currentPrefs.enableSmartDirection,
             favoriteRoutes: favoriteRoutes ?? currentPrefs.favoriteRoutes
         )
     }
@@ -119,22 +116,6 @@ class PreferencesManager {
         preferences = currentPrefs
     }
     
-    func updateFavoriteRoute(id: String, name: String, fromStation: String, toStation: String, isDirectionReversed: Bool) {
-        var currentPrefs = preferences
-        let updatedRoute = FavoriteRoute(
-            id: id,
-            name: name,
-            fromStation: fromStation,
-            toStation: toStation,
-            isDirectionReversed: isDirectionReversed
-        )
-        
-        if let index = currentPrefs.favoriteRoutes.firstIndex(where: { $0.id == id }) {
-            currentPrefs.favoriteRoutes[index] = updatedRoute
-            preferences = currentPrefs
-        }
-    }
-    
     func deleteFavoriteRoute(id: String) {
         var currentPrefs = preferences
         currentPrefs.favoriteRoutes.removeAll { $0.id == id }
@@ -157,7 +138,7 @@ class PreferencesManager {
                 walkTimeDurationMin: currentPrefs.walkTimeDurationMin,
                 maxTrainChanges: currentPrefs.maxTrainChanges,
                 isDirectionReversed: route.isDirectionReversed,
-                enableSmartDirection: currentPrefs.enableSmartDirection
+                favoriteRoutes: currentPrefs.favoriteRoutes
             )
             return true
         }
