@@ -149,7 +149,7 @@ struct PreferencesView: View {
         _walkTimeDurationMin = State(initialValue: preferences.walkTimeDurationMin)
         _maxTrainChanges = State(initialValue: preferences.maxTrainChanges)
         _isDirectionReversed = State(initialValue: preferences.isDirectionReversed)
-        _favoriteRoutes = State(initialValue: preferences.favoriteRoutes) // Initialize favorite routes
+        _favoriteRoutes = State(initialValue: preferences.favoriteRoutes)
         self.onSave = onSave
         self.onCancel = onCancel
     }
@@ -185,10 +185,7 @@ struct PreferencesView: View {
                         selectedStationId: $selectedToStation
                     )
                     
-                    // Favorite Routes Management
-                    HStack {
-                        Spacer()
-                        
+                    HStack {                        
                         Button(action: {
                             showSaveRouteDialog = true
                         }) {
@@ -211,7 +208,6 @@ struct PreferencesView: View {
 
                         Spacer().frame(width: 10)
 
-                        // Manage Routes Button
                         Button(action: {
                             showManageRoutesDialog = true
                         }) {
@@ -231,9 +227,7 @@ struct PreferencesView: View {
                             )
                         }
                         .buttonStyle(PlainButtonStyle())
-                        .help("View, edit or delete saved routes")
                         
-                        Spacer()
                     }
                     .padding(.vertical, 4)
 
@@ -435,7 +429,6 @@ struct PreferencesView: View {
                         isDirectionReversed: isDirectionReversed
                     )
                     
-                    // Save to preferences
                     var updatedRoutes = PreferencesManager.shared.preferences.favoriteRoutes
                     
                     // Replace if a route with the same name exists, otherwise add
@@ -445,17 +438,14 @@ struct PreferencesView: View {
                         updatedRoutes.append(newRoute)
                     }
                     
-                    // Sort by name
                     updatedRoutes.sort { $0.name < $1.name }
                     
-                    // Save the updated routes to preferences
                     PreferencesManager.shared.savePreferences(
                         fromStation: PreferencesManager.shared.preferences.fromStation,
                         toStation: PreferencesManager.shared.preferences.toStation,
                         favoriteRoutes: updatedRoutes
                     )
                     
-                    // Refresh the local list
                     favoriteRoutes = updatedRoutes
                 }
             )

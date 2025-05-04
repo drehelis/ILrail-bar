@@ -23,8 +23,7 @@ A sleek and efficient macOS menu bar app for tracking Israel Railways train sche
 ## Screenshots
 
 <p align="center">
-  <img src="screenshots/menu.png" width="400" alt="Menu Bar Interface">
-  <img src="screenshots/prefs.png" width="400" alt="Menu Bar Interface">
+  <img src="screenshots/screen.png" width="400" alt="Menu Bar Interface">
 </p>
 
 ## Installation
@@ -57,11 +56,7 @@ To pack DMG file, use `./utils/package_dmg.sh`
 1. **Initial Setup**: When you first launch the app, it will appear in your menu bar with a train icon
 2. **View Trains**: Click the icon to open a popover with upcoming train information
 3. **Preferences**: Click the "Preferences" button in the popover to configure your stations, refresh interval, active days and additional filters
-4. **Favorite Routes**:
-   - Click the "Routes" dropdown in the popover header to access your saved routes
-   - Select "Add to Favorites" to save your current route configuration
-   - Use "Manage Favorites" to edit or delete your saved routes
-5. **Quick Actions**: 
+4. **Quick Actions**: 
    - Use the "Reverse Direction" button (↔) to swap departure and arrival stations
    - Click on a train listing to copy its details to your clipboard
 

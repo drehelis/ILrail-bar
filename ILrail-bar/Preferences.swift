@@ -98,7 +98,6 @@ class PreferencesManager {
         )
     }
     
-    // Favorite routes management
     func saveFavoriteRoute(name: String, fromStation: String, toStation: String, isDirectionReversed: Bool) {
         var currentPrefs = preferences
         let newRoute = FavoriteRoute(
@@ -115,10 +114,8 @@ class PreferencesManager {
             currentPrefs.favoriteRoutes.append(newRoute)
         }
         
-        // Sort by name
         currentPrefs.favoriteRoutes.sort { $0.name < $1.name }
         
-        // Save updated preferences
         preferences = currentPrefs
     }
     
