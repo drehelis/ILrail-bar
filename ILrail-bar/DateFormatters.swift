@@ -65,4 +65,15 @@ struct DateFormatters {
         
         return nil
     }
+    
+    static func formatDateLabel(for date: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) {
+            return ":"
+        } else {
+            let dayMonthYearFormatter = DateFormatter()
+            dayMonthYearFormatter.dateFormat = "EEEE, d MMM"
+            return " (\(dayMonthYearFormatter.string(from: date))):"
+        }
+    }
 }

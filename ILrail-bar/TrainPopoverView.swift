@@ -41,18 +41,6 @@ struct TrainPopoverView: View {
         self.onSelectFavoriteRoute = onSelectFavoriteRoute
     }
     
-    // Helper function to check if date is today and format date for display
-    private func formatDateLabel(for date: Date) -> String {
-        let calendar = Calendar.current
-        if calendar.isDateInToday(date) {
-            return ":"
-        } else {
-            let dayMonthYearFormatter = DateFormatter()
-            dayMonthYearFormatter.dateFormat = "EEEE, d MMM"
-            return " (\(dayMonthYearFormatter.string(from: date))):"
-        }
-    }
-    
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header with station names and reverse button
@@ -72,7 +60,7 @@ struct TrainPopoverView: View {
             if !trainSchedules.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {
                     HStack {
-                        Text("Next\(formatDateLabel(for: trainSchedules[0].departureTime))")
+                        Text("Next\(DateFormatters.formatDateLabel(for: trainSchedules[0].departureTime))")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         
@@ -91,7 +79,7 @@ struct TrainPopoverView: View {
                             .padding(.vertical, 5)
                         
                         // Get the date for the second train (first upcoming train)
-                        let upcomingDateLabel = formatDateLabel(for: trainSchedules[1].departureTime)
+                        let upcomingDateLabel = DateFormatters.formatDateLabel(for: trainSchedules[1].departureTime)
                         
                         Text("Upcoming\(upcomingDateLabel)")
                             .font(.subheadline)
