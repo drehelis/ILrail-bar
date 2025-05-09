@@ -13,6 +13,12 @@ BUMP:major - Increases the major version (x.0.0)
 -->
 
 <!-- BUMP:patch -->
+## v2.6.2 - 2025-05-09
+### Added
+- Display date in section headers for trains scheduled on future days
+- Show notification when filter settings are active and some routes are hidden
+
+<!-- BUMP:patch -->
 ## v2.6.1 - 2025-05-06
 ### Fixed
 - Fixed platform display to always use `originPlatform`
