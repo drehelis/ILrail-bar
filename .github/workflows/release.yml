@@ -75,7 +75,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          RELEASE_NOTES=$(sed -n "/^## $NEW_TAG/,/^## v/p" CHANGELOG.md | sed '$d')
+          echo "$RELEASE_NOTES" > release_notes.md
+
           gh release create $NEW_TAG \
             -t $NEW_TAG \
-            -F CHANGELOG.md \
+            -F release_notes.md \
             ./ILrail-bar.dmg ./ILrail-bar.pkg
