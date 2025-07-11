@@ -12,6 +12,12 @@ BUMP:minor - Increases the minor version (0.x.0)
 BUMP:major - Increases the major version (x.0.0)
 -->
 
+<!-- BUMP:minor -->
+## v2.7.0 - 2025-07-11
+### Changed
+- **BREAKING CHANGE**: Updated to support upstream API changes from rail service provider
+- Mandatory upgrade required for continued functionality
+
 <!-- BUMP:patch -->
 ## v2.6.2 - 2025-05-09
 ### Added
