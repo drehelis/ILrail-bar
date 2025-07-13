@@ -1,8 +1,10 @@
+import Cocoa
 import Foundation
 
 class NetworkManager {
     static let shared = NetworkManager()
 
+    private let githubApiURL = "https://api.github.com/repos/drehelis/ilrail-bar/releases/latest"
     private let apiKey = "5e64d66cf03f4547bcac5de2de06b566"
     private let apiBaseURL = "https://rail-api.rail.co.il"
     private var timetableBaseURL: String {
@@ -445,5 +447,94 @@ class NetworkManager {
                 completion(.failure(error))
             }
         }.resume()
+    }
+
+    func checkForUpdates(completion: @escaping (Result<Bool, NetworkError>) -> Void) {
+
+        guard let url = URL(string: githubApiURL) else {
+            completion(.failure(.invalidURL))
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.addValue(madeUpUserAgent, forHTTPHeaderField: "User-Agent")
+
+        logInfo("Checking for updates at: \(url.absoluteString)")
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                logError("Error checking for updates: \(error.localizedDescription)")
+                completion(.failure(.serverError(error.localizedDescription)))
+                return
+            }
+
+            guard let data = data else {
+                completion(.failure(.noData))
+                return
+            }
+
+            do {
+                let release = try JSONDecoder().decode(GitHubRelease.self, from: data)
+                let latestVersion = release.name
+                let currentVersion = self.getCurrentAppVersion()
+
+                logInfo("Current version: \(currentVersion), Latest version: \(latestVersion)")
+
+                let hasUpdate = self.isVersionNewer(latest: latestVersion, current: currentVersion)
+                completion(.success(hasUpdate))
+            } catch {
+                logError("Error decoding GitHub release response: \(error.localizedDescription)")
+                completion(.failure(.decodingError))
+            }
+        }.resume()
+    }
+
+    private func getCurrentAppVersion() -> String {
+        var version: String = "x.x.x"
+
+        // Get version from AppDelegate on main thread
+        if Thread.isMainThread {
+            if let appDelegate = NSApplication.shared.delegate as? AppDelegate {
+                version = appDelegate.getAppVersion()
+            }
+        } else {
+            DispatchQueue.main.sync {
+                if let appDelegate = NSApplication.shared.delegate as? AppDelegate {
+                    version = appDelegate.getAppVersion()
+                }
+            }
+        }
+
+        return version
+    }
+
+    private func isVersionNewer(latest: String, current: String) -> Bool {
+        // Remove 'v' prefix if present
+        let latestVersion = latest.hasPrefix("v") ? String(latest.dropFirst()) : latest
+        let currentVersion = current.hasPrefix("v") ? String(current.dropFirst()) : current
+
+        // Compare versions using semantic versioning
+        let latestComponents = latestVersion.split(separator: ".").compactMap { Int($0) }
+        let currentComponents = currentVersion.split(separator: ".").compactMap { Int($0) }
+
+        // Ensure both arrays have at least 3 components (major.minor.patch)
+        let latestPadded =
+            latestComponents + Array(repeating: 0, count: max(0, 3 - latestComponents.count))
+        let currentPadded =
+            currentComponents + Array(repeating: 0, count: max(0, 3 - currentComponents.count))
+
+        // Compare each component
+        for i in 0..<max(latestPadded.count, currentPadded.count) {
+            let latestPart = i < latestPadded.count ? latestPadded[i] : 0
+            let currentPart = i < currentPadded.count ? currentPadded[i] : 0
+
+            if latestPart > currentPart {
+                return true
+            } else if latestPart < currentPart {
+                return false
+            }
+        }
+
+        return false  // Versions are equal
     }
 }

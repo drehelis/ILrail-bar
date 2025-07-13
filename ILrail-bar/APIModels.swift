@@ -1,5 +1,18 @@
 import Foundation
 
+// GitHub API response models for version checking
+struct GitHubRelease: Codable {
+    let name: String
+    let tagName: String
+    let published_at: String
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case tagName = "tag_name"
+        case published_at
+    }
+}
+
 // API response models for stations
 struct StationResponse: Codable {
     let creationDate: String
@@ -50,51 +63,51 @@ struct TrainData: Decodable {
     let toStationName: String?
     let originPlatform: Int
     let destPlatform: Int
-    
+
     enum CodingKeys: String, CodingKey {
         case trainNumber
         case departureTime
         case arrivalTime
         case originPlatform
         case destPlatform
-        case fromStationName = "orignStation" // Note: API has a typo "orignStation" instead of "originStation"
+        case fromStationName = "orignStation"  // Note: API has a typo "orignStation" instead of "originStation"
         case toStationName = "destinationStation"
-        case stopStations // Added to explicitly ignore this key
-        case routeStations // Added to explicitly ignore this key
+        case stopStations  // Added to explicitly ignore this key
+        case routeStations  // Added to explicitly ignore this key
         // Excluded: routeStations, stopStations - we'll explicitly ignore these
     }
-    
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        
+
         // Handle trainNumber which can be either an Int or a String
         if let trainNumberInt = try? container.decode(Int.self, forKey: .trainNumber) {
             trainNumber = String(trainNumberInt)
         } else {
             trainNumber = try container.decode(String.self, forKey: .trainNumber)
         }
-        
+
         departureTime = try container.decode(Date.self, forKey: .departureTime)
         arrivalTime = try container.decode(Date.self, forKey: .arrivalTime)
         originPlatform = try container.decode(Int.self, forKey: .originPlatform)
         destPlatform = try container.decode(Int.self, forKey: .destPlatform)
-        
+
         // Handle optional fields or convert types as needed
         if let fromStationId = try? container.decode(Int.self, forKey: .fromStationName) {
             fromStationName = String(fromStationId)
         } else {
             fromStationName = nil
         }
-        
+
         if let toStationId = try? container.decode(Int.self, forKey: .toStationName) {
             toStationName = String(toStationId)
         } else {
             toStationName = nil
         }
-        
+
         // Set platform as string from destPlatform
         platform = String(destPlatform)
-        
+
         // Explicitly ignore stopStations and routeStations
         // We're not storing these values, just making sure they're properly skipped during decoding
         _ = try? container.decodeNil(forKey: .stopStations)

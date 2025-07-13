@@ -8,12 +8,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
     private var trainScheduleTimer: Timer?
     private var activeScheduleTimer: Timer?
     private var displayUpdateTimer: Timer?
+    private var updateCheckTimer: Timer?
     private let networkManager = NetworkManager()
     private var preferencesWindow: NSWindow?
     private var aboutWindow: NSWindow?
     private var eventMonitor: EventMonitor?
     private var preferencesEventMonitor: EventMonitor?
     private var isMenuBarVisible: Bool = true
+    private var hasUpdateAvailable: Bool = false
     
     // Current train schedules and error state
     private var currentTrainSchedules: [TrainSchedule] = []
@@ -21,7 +23,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
     private var isRefreshing: Bool = false
     
     private enum Constants {
-        static let aboutTitle = "ILrail-bar %%VERSION%%"
+        static let appVersion: String = "%%VERSION%%"
+        static let aboutTitle = "ILrail-bar \(appVersion)"
         static let menuBarErrorText = "Error"
         static let menuBarNoResultsText = "No trains"
         static let noTrainFoundMessage = "No trains found for route"
@@ -113,6 +116,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             repeats: true
         )
         
+        // Configure update checking timer
+        configureUpdateCheckTimer()
+        
         // Listen for preferences changes
         NotificationCenter.default.addObserver(
             self,
@@ -146,6 +152,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
         trainScheduleTimer?.invalidate()
         activeScheduleTimer?.invalidate()
         displayUpdateTimer?.invalidate()
+        updateCheckTimer?.invalidate()
     }
     
     @objc private func timerRefresh() {
@@ -197,10 +204,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
+        updateStatusIcon()
+        
         if let button = statusItem.button {
-            let tramImage = NSImage(systemSymbolName: "tram.fill", accessibilityDescription: "Train")
-            tramImage?.isTemplate = true  // Ensures proper appearance in dark/light modes
-            button.image = tramImage
             // Add action to show popover
             button.action = #selector(togglePopover)
             button.target = self
@@ -217,6 +223,52 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
         }
         
         logInfo("Initial time text visibility: \(isMenuBarVisible ? "visible" : "hidden")")
+    }
+    
+    private func updateStatusIcon() {
+        if let button = statusItem.button {
+            let symbolName = hasUpdateAvailable ? "exclamationmark.triangle.fill" : "tram.fill"
+            let accessibilityDescription = hasUpdateAvailable ? "Update Available" : "Train"
+            let iconImage = NSImage(systemSymbolName: symbolName, accessibilityDescription: accessibilityDescription)
+            iconImage?.isTemplate = true  // Ensures proper appearance in dark/light modes
+            button.image = iconImage
+        }
+    }
+    
+    @objc private func checkForUpdates() {
+        // Only check for updates if the preference is enabled
+        guard PreferencesManager.shared.preferences.checkForUpdates else {
+            logInfo("Update checking is disabled in preferences")
+            // Reset update status if checking is disabled
+            if hasUpdateAvailable {
+                hasUpdateAvailable = false
+                updateStatusIcon()
+            }
+            return
+        }
+        
+        logInfo("Checking for app updates...")
+        networkManager.checkForUpdates { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                
+                switch result {
+                case .success(let hasUpdate):
+                    if hasUpdate != self.hasUpdateAvailable {
+                        self.hasUpdateAvailable = hasUpdate
+                        self.updateStatusIcon()
+                        
+                        if hasUpdate {
+                            logInfo("Update available - icon changed to exclamation mark")
+                        } else {
+                            logInfo("App is up to date - using normal train icon")
+                        }
+                    }
+                case .failure(let error):
+                    logWarning("Failed to check for updates: \(error.localizedDescription)")
+                }
+            }
+        }
     }
     
     @objc func togglePopover(_ sender: AnyObject?) {
@@ -393,6 +445,37 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
         
         // Check if menu bar should be visible with new preferences
         checkActiveHours()
+        
+        // Handle update checking preference changes
+        configureUpdateCheckTimer()
+    }
+    
+    private func configureUpdateCheckTimer() {
+        let shouldCheckForUpdates = PreferencesManager.shared.preferences.checkForUpdates
+        
+        if shouldCheckForUpdates && updateCheckTimer == nil {
+            // Enable update checking
+            logInfo("Enabling update checking")
+            checkForUpdates()
+            updateCheckTimer = Timer.scheduledTimer(
+                timeInterval: 24 * 60 * 60, // 24 hours
+                target: self,
+                selector: #selector(checkForUpdates),
+                userInfo: nil,
+                repeats: true
+            )
+        } else if !shouldCheckForUpdates && updateCheckTimer != nil {
+            // Disable update checking
+            logInfo("Disabling update checking")
+            updateCheckTimer?.invalidate()
+            updateCheckTimer = nil
+            
+            // Reset icon to normal if update was available
+            if hasUpdateAvailable {
+                hasUpdateAvailable = false
+                updateStatusIcon()
+            }
+        }
     }
     
     @objc private func fetchTrainSchedule(showLoading: Bool = true) {
@@ -645,6 +728,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             toStation: preferences.toStation,
             upcomingItemsCount: preferences.upcomingItemsCount,
             launchAtLogin: preferences.launchAtLogin,
+            checkForUpdates: preferences.checkForUpdates,
             refreshInterval: preferences.refreshInterval,
             activeDays: preferences.activeDays,
             activeStartHour: preferences.activeStartHour,
@@ -699,8 +783,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
         let fromStation = stations.first(where: { $0.id == preferences.fromStation })?.name ?? preferences.fromStation
         let toStation = stations.first(where: { $0.id == preferences.toStation })?.name ?? preferences.toStation
         let directionArrow = preferences.isDirectionReversed ? "←" : "→"
-        let directionText = "\(fromStation) \(directionArrow) \(toStation)"
+        let updatePrefix = hasUpdateAvailable ? "(Update avail.) " : ""
+        let directionText = "\(updatePrefix) \(fromStation) \(directionArrow) \(toStation)"
         button.toolTip = directionText
+    }
+
+    func getAppVersion() -> String {
+        return Constants.appVersion
     }
 }
 

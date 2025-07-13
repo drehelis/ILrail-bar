@@ -13,6 +13,11 @@ BUMP:major - Increases the major version (x.0.0)
 -->
 
 <!-- BUMP:minor -->
+## v2.8.0 - 2025-07-13
+### Added
+- Version checking: App now checks GitHub for new releases and displays update indicator
+
+<!-- BUMP:minor -->
 ## v2.7.0 - 2025-07-11
 ### Changed
 - **BREAKING CHANGE**: Updated to support upstream API changes from rail service provider

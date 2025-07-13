@@ -1,5 +1,5 @@
-import SwiftUI
 import ServiceManagement
+import SwiftUI
 
 struct SearchableStationPicker: View {
     let label: String
@@ -7,7 +7,7 @@ struct SearchableStationPicker: View {
     @Binding var selectedStationId: String
     @State private var isExpanded: Bool = false
     @State private var searchText: String = ""
-    
+
     var filteredStations: [Station] {
         if searchText.isEmpty {
             return stations
@@ -17,17 +17,17 @@ struct SearchableStationPicker: View {
             }
         }
     }
-    
+
     var selectedStationName: String {
         stations.first(where: { $0.id == selectedStationId })?.name ?? "Select station"
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center) {
                 Text(label)
                     .frame(width: 150, alignment: .leading)
-                
+
                 Button(action: {
                     isExpanded.toggle()
                 }) {
@@ -52,13 +52,13 @@ struct SearchableStationPicker: View {
                 .buttonStyle(PlainButtonStyle())
                 .frame(maxWidth: .infinity)
             }
-            
+
             if isExpanded {
                 VStack(alignment: .leading, spacing: 0) {
                     TextField("Search", text: $searchText)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .padding(.vertical, 6)
-    
+
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 0) {
                             ForEach(filteredStations) { station in
@@ -68,14 +68,17 @@ struct SearchableStationPicker: View {
                                     searchText = ""
                                 }) {
                                     Text(station.name)
-                                        .foregroundColor(selectedStationId == station.id ? .accentColor : Color.primary)
+                                        .foregroundColor(
+                                            selectedStationId == station.id
+                                                ? .accentColor : Color.primary
+                                        )
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 6)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                         .contentShape(Rectangle())
                                 }
                                 .buttonStyle(PlainButtonStyle())
-                                
+
                                 if station.id != filteredStations.last?.id {
                                     Divider()
                                 }
@@ -109,6 +112,7 @@ struct PreferencesView: View {
     @State private var selectedToStation: String
     @State private var upcomingItemsCount: Int
     @State private var launchAtLogin: Bool
+    @State private var checkForUpdates: Bool
     @State private var refreshInterval: Int
     @State private var activeDays: [Bool]
     @State private var activeStartHour: Int
@@ -123,14 +127,14 @@ struct PreferencesView: View {
     @State private var showManageRoutesDialog: Bool = false
     @State private var favoriteRoutes: [FavoriteRoute] = []
     @State private var selectedFavoriteRouteName: String = ""
-    
+
     // Callback functions for popover actions
     let onSave: () -> Void
     let onCancel: () -> Void
-    
+
     init(onSave: @escaping () -> Void = {}, onCancel: @escaping () -> Void = {}) {
         let preferences = PreferencesManager.shared.preferences
-        
+
         // If direction is reversed, we swap from/to stations in the UI
         if preferences.isDirectionReversed {
             _selectedFromStation = State(initialValue: preferences.toStation)
@@ -139,9 +143,10 @@ struct PreferencesView: View {
             _selectedFromStation = State(initialValue: preferences.fromStation)
             _selectedToStation = State(initialValue: preferences.toStation)
         }
-        
+
         _upcomingItemsCount = State(initialValue: preferences.upcomingItemsCount)
         _launchAtLogin = State(initialValue: preferences.launchAtLogin)
+        _checkForUpdates = State(initialValue: preferences.checkForUpdates)
         _refreshInterval = State(initialValue: preferences.refreshInterval)
         _activeDays = State(initialValue: preferences.activeDays)
         _activeStartHour = State(initialValue: preferences.activeStartHour)
@@ -153,11 +158,11 @@ struct PreferencesView: View {
         self.onSave = onSave
         self.onCancel = onCancel
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             Spacer().frame(height: 20)
-            
+
             if isLoading {
                 ProgressView("Loading stations...")
                     .padding()
@@ -167,25 +172,34 @@ struct PreferencesView: View {
                     HStack(alignment: .center) {
                         Text("Launch at Login")
                             .frame(width: 150, alignment: .leading)
-                        
+
                         Toggle("", isOn: $launchAtLogin)
                             .labelsHidden()
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    
+
+                    HStack(alignment: .center) {
+                        Text("Check for Updates")
+                            .frame(width: 150, alignment: .leading)
+
+                        Toggle("", isOn: $checkForUpdates)
+                            .labelsHidden()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
                     SearchableStationPicker(
                         label: "Departure Station",
                         stations: stations,
                         selectedStationId: $selectedFromStation
                     )
-                    
+
                     SearchableStationPicker(
                         label: "Arrival Station",
                         stations: stations,
                         selectedStationId: $selectedToStation
                     )
-                    
-                    HStack {                        
+
+                    HStack {
                         Button(action: {
                             showSaveRouteDialog = true
                         }) {
@@ -227,7 +241,7 @@ struct PreferencesView: View {
                             )
                         }
                         .buttonStyle(PlainButtonStyle())
-                        
+
                     }
                     .padding(.vertical, 4)
 
@@ -237,8 +251,10 @@ struct PreferencesView: View {
 
                         Text("Walking time duration")
                             .frame(width: 150, alignment: .leading)
-                            .help("The time it takes to walk from your location to the station. Adjusts schedule accordingly.")
-                        
+                            .help(
+                                "The time it takes to walk from your location to the station. Adjusts schedule accordingly."
+                            )
+
                         HStack(spacing: 5) {
                             Text("\(walkTimeDurationMin)")
                                 .frame(minWidth: 20, alignment: .trailing)
@@ -253,7 +269,7 @@ struct PreferencesView: View {
                     HStack(alignment: .center) {
                         Text("Schedule fetch interval")
                             .frame(width: 150, alignment: .leading)
-                        
+
                         Picker("", selection: $refreshInterval) {
                             Text("10 seconds").tag(10)
                             Text("30 seconds").tag(30)
@@ -268,13 +284,13 @@ struct PreferencesView: View {
                         .pickerStyle(PopUpButtonPickerStyle())
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                                                            
+
                     Divider()
-                    
+
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Active on days:")
                             .frame(width: 150, alignment: .leading)
-                        
+
                         HStack(spacing: 2) {
                             ForEach(0..<7) { index in
                                 let day = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][index]
@@ -283,7 +299,10 @@ struct PreferencesView: View {
                                 }) {
                                     Text(day)
                                         .frame(width: 40, height: 24)
-                                        .background(activeDays[index] ? Color.blue : Color(NSColor.controlBackgroundColor))
+                                        .background(
+                                            activeDays[index]
+                                                ? Color.blue : Color(NSColor.controlBackgroundColor)
+                                        )
                                         .foregroundColor(activeDays[index] ? .white : .primary)
                                         .cornerRadius(12)
                                         .overlay(
@@ -296,11 +315,11 @@ struct PreferencesView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    
+
                     HStack(alignment: .center) {
                         Text("Active hours:")
                             .frame(width: 150, alignment: .leading)
-                        
+
                         HStack(spacing: 5) {
                             Picker("", selection: $activeStartHour) {
                                 ForEach(0..<24) { hour in
@@ -309,7 +328,7 @@ struct PreferencesView: View {
                             }
                             .frame(width: 100)
                             .pickerStyle(PopUpButtonPickerStyle())
-                            
+
                             Picker("", selection: $activeEndHour) {
                                 ForEach(0..<24) { hour in
                                     Text(formatHour(hour)).tag(hour)
@@ -320,9 +339,9 @@ struct PreferencesView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    
+
                     Divider()
-                    
+
                     Button(action: {
                         showAdditionalFilters.toggle()
                     }) {
@@ -339,7 +358,7 @@ struct PreferencesView: View {
                             HStack(alignment: .center) {
                                 Text("Upcoming list items")
                                     .frame(width: 150, alignment: .leading)
-                                
+
                                 HStack(spacing: 5) {
                                     Text("\(upcomingItemsCount)")
                                         .frame(minWidth: 20, alignment: .trailing)
@@ -368,20 +387,21 @@ struct PreferencesView: View {
                 }
                 .padding(.horizontal, 20)
             }
-            
+
             HStack(spacing: 20) {
                 Button("Cancel") {
                     onCancel()
                 }
                 .buttonStyle(.bordered)
                 .frame(width: 100)
-                
+
                 Button("Save") {
                     PreferencesManager.shared.savePreferences(
                         fromStation: isDirectionReversed ? selectedToStation : selectedFromStation,
                         toStation: isDirectionReversed ? selectedFromStation : selectedToStation,
                         upcomingItemsCount: upcomingItemsCount,
                         launchAtLogin: launchAtLogin,
+                        checkForUpdates: checkForUpdates,
                         refreshInterval: refreshInterval,
                         activeDays: activeDays,
                         activeStartHour: activeStartHour,
@@ -390,13 +410,13 @@ struct PreferencesView: View {
                         maxTrainChanges: maxTrainChanges,
                         isDirectionReversed: isDirectionReversed
                     )
-                    
+
                     // Configure launch at login
                     updateLaunchAtLogin(launchAtLogin)
-                    
+
                     // Notify the app to refresh train schedules with new preferences
                     NotificationCenter.default.post(name: .reloadPreferencesChanged, object: nil)
-                    
+
                     onSave()
                 }
                 .buttonStyle(PrimaryButtonStyle())
@@ -420,7 +440,7 @@ struct PreferencesView: View {
                 onSave: { routeName in
                     // Save current selections as favorite route exactly as shown in the UI
                     // Always use the stations as they appear in the UI fields, regardless of direction flag
-                    
+
                     // Create a new favorite route with the current station selections
                     let newRoute = FavoriteRoute(
                         name: routeName,
@@ -428,24 +448,24 @@ struct PreferencesView: View {
                         toStation: selectedToStation,
                         isDirectionReversed: isDirectionReversed
                     )
-                    
+
                     var updatedRoutes = PreferencesManager.shared.preferences.favoriteRoutes
-                    
+
                     // Replace if a route with the same name exists, otherwise add
                     if let index = updatedRoutes.firstIndex(where: { $0.name == routeName }) {
                         updatedRoutes[index] = newRoute
                     } else {
                         updatedRoutes.append(newRoute)
                     }
-                    
+
                     updatedRoutes.sort { $0.name < $1.name }
-                    
+
                     PreferencesManager.shared.savePreferences(
                         fromStation: PreferencesManager.shared.preferences.fromStation,
                         toStation: PreferencesManager.shared.preferences.toStation,
                         favoriteRoutes: updatedRoutes
                     )
-                    
+
                     favoriteRoutes = updatedRoutes
                 }
             )
@@ -461,16 +481,16 @@ struct PreferencesView: View {
             )
         }
     }
-    
+
     private func loadStations() {
         // Only show loading if we have default stations
         if stations.count <= 5 {
             isLoading = true
         }
-        
+
         // Update stations when view appears
         stations = Station.allStations
-        
+
         // Setup notification observer for stations loaded
         NotificationCenter.default.addObserver(
             forName: .stationsLoaded,
@@ -480,7 +500,7 @@ struct PreferencesView: View {
             // Update stations when loaded from remote
             self.stations = Station.allStations
             self.isLoading = false
-            
+
             // Check if currently selected stations still exist in the new data
             if !self.stations.contains(where: { $0.id == self.selectedFromStation }) {
                 self.selectedFromStation = Station.defaultStations.first?.id ?? ""
@@ -489,7 +509,7 @@ struct PreferencesView: View {
                 self.selectedToStation = Station.defaultStations.last?.id ?? ""
             }
         }
-        
+
         // Actively fetch stations if needed
         if stations.count <= 5 {
             Station.fetchStations { fetchedStations in
@@ -498,7 +518,7 @@ struct PreferencesView: View {
                         Station.setStations(fetchedStations)
                         self.stations = fetchedStations
                         self.isLoading = false
-                        
+
                         // Notify that stations have been loaded
                         NotificationCenter.default.post(name: .stationsLoaded, object: nil)
                     } else {
@@ -509,7 +529,7 @@ struct PreferencesView: View {
             }
         }
     }
-    
+
     private func updateLaunchAtLogin(_ enabled: Bool) {
         do {
             if enabled {
@@ -521,22 +541,28 @@ struct PreferencesView: View {
                 logInfo("Launch at login disabled")
             }
         } catch {
-            logError("Failed to \(enabled ? "register" : "unregister") launch at login: \(error.localizedDescription)")
+            logError(
+                "Failed to \(enabled ? "register" : "unregister") launch at login: \(error.localizedDescription)"
+            )
         }
     }
-    
+
     private func formatHour(_ hour: Int) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "h a"
         let date = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: Date())!
         return formatter.string(from: date)
     }
-    
+
     private func applyFavoriteRoute(_ routeId: String) {
-        guard let route = PreferencesManager.shared.preferences.favoriteRoutes.first(where: { $0.id == routeId }) else {
+        guard
+            let route = PreferencesManager.shared.preferences.favoriteRoutes.first(where: {
+                $0.id == routeId
+            })
+        else {
             return
         }
-        
+
         selectedFromStation = route.fromStation
         selectedToStation = route.toStation
         isDirectionReversed = route.isDirectionReversed
