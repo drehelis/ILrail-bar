@@ -13,6 +13,12 @@ BUMP:major - Increases the major version (x.0.0)
 -->
 
 <!-- BUMP:minor -->
+## v2.9.0 - 2025-08-06
+### Changed
+- **API Update**: Switched to proxy endpoint to bypass geo-limiting restrictions from the official Israel Railways API
+- Improved global accessibility for users on controlled/corporate networks with non-local routes.
+
+<!-- BUMP:minor -->
 ## v2.8.0 - 2025-07-13
 ### Added
 - Version checking: App now checks GitHub for new releases and displays update indicator

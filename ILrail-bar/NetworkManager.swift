@@ -5,13 +5,12 @@ class NetworkManager {
     static let shared = NetworkManager()
 
     private let githubApiURL = "https://api.github.com/repos/drehelis/ilrail-bar/releases/latest"
-    private let apiKey = "5e64d66cf03f4547bcac5de2de06b566"
-    private let apiBaseURL = "https://rail-api.rail.co.il"
+    private let apiBaseURL = "https://ilrail-bar-proxy-bmt2z7lcca-zf.a.run.app"
     private var timetableBaseURL: String {
-        return apiBaseURL + "/rjpa/api/v1/timetable/searchTrainLuzForDateTime"
+        return apiBaseURL + "/timetable"
     }
-    private var stationsBaseURL: String { return apiBaseURL + "/common/api/v1/stations" }
-    private let madeUpUserAgent = "ILrail-bar/1.0 macOS"
+    private var stationsBaseURL: String { return apiBaseURL + "/stations" }
+    private let madeUpUserAgent = "I1Lrail-bar/1.0 macOS"
 
     private let languageId = "Hebrew"
     private let scheduleType = "1"
@@ -82,7 +81,6 @@ class NetworkManager {
 
         var request = URLRequest(url: url)
         request.addValue(madeUpUserAgent, forHTTPHeaderField: "User-Agent")
-        request.addValue(apiKey, forHTTPHeaderField: "ocp-apim-subscription-key")
 
         // Log the full URL for debugging
         logInfo("Making network request to: \(url.absoluteString)")
@@ -348,7 +346,6 @@ class NetworkManager {
 
         var request = URLRequest(url: url)
         request.addValue(madeUpUserAgent, forHTTPHeaderField: "User-Agent")
-        request.addValue(apiKey, forHTTPHeaderField: "ocp-apim-subscription-key")
 
         // Log the full URL for debugging
         logInfo("Making network request to: \(url.absoluteString)")
@@ -492,7 +489,6 @@ class NetworkManager {
     private func getCurrentAppVersion() -> String {
         var version: String = "x.x.x"
 
-        // Get version from AppDelegate on main thread
         if Thread.isMainThread {
             if let appDelegate = NSApplication.shared.delegate as? AppDelegate {
                 version = appDelegate.getAppVersion()
