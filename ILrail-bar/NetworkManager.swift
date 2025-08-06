@@ -10,7 +10,7 @@ class NetworkManager {
         return apiBaseURL + "/timetable"
     }
     private var stationsBaseURL: String { return apiBaseURL + "/stations" }
-    private let madeUpUserAgent = "I1Lrail-bar/1.0 macOS"
+    private let madeUpUserAgent = "ILrail-bar/1.0 macOS"
 
     private let languageId = "Hebrew"
     private let scheduleType = "1"
