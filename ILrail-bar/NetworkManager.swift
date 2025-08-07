@@ -92,43 +92,44 @@ class NetworkManager {
             URLQueryItem(name: "systemType", value: systemType),
         ]
 
-        // Try proxy first
-        performSingleStationsRequest(
-            baseURL: proxyStationsBaseURL,
-            queryItems: queryItems,
-            useApiKey: false
-        ) { [weak self] result in
-            switch result {
-            case .success(let stations):
-                logInfo("Successfully fetched stations from proxy API")
-                completion(.success(stations))
-
-            case .failure(let error):
-                logWarning("Proxy API failed: \(error.localizedDescription). Trying fallback...")
-                self?.tryOriginalStationsAPI(
-                    queryItems: queryItems, proxyError: error, completion: completion)
-            }
-        }
-    }
-
-    private func tryOriginalStationsAPI(
-        queryItems: [URLQueryItem],
-        proxyError: NetworkError,
-        completion: @escaping (Result<[RemoteStation], NetworkError>) -> Void
-    ) {
+        // Try official API first
         performSingleStationsRequest(
             baseURL: originalStationsBaseURL,
             queryItems: queryItems,
             useApiKey: true
+        ) { [weak self] result in
+            switch result {
+            case .success(let stations):
+                logInfo("Successfully fetched stations from official API")
+                completion(.success(stations))
+
+            case .failure(let error):
+                logWarning(
+                    "Official API failed: \(error.localizedDescription). Trying proxy fallback...")
+                self?.tryProxyStationsAPI(
+                    queryItems: queryItems, officialError: error, completion: completion)
+            }
+        }
+    }
+
+    private func tryProxyStationsAPI(
+        queryItems: [URLQueryItem],
+        officialError: NetworkError,
+        completion: @escaping (Result<[RemoteStation], NetworkError>) -> Void
+    ) {
+        performSingleStationsRequest(
+            baseURL: proxyStationsBaseURL,
+            queryItems: queryItems,
+            useApiKey: false
         ) { [weak self] fallbackResult in
             switch fallbackResult {
             case .success(let stations):
-                logInfo("Successfully fetched stations from original API (fallback)")
+                logInfo("Successfully fetched stations from proxy API (fallback)")
                 completion(.success(stations))
 
             case .failure(let fallbackError):
                 logError(
-                    "Both APIs failed. Proxy: \(proxyError.localizedDescription), Original: \(fallbackError.localizedDescription)"
+                    "Both APIs failed. Official: \(officialError.localizedDescription), Proxy: \(fallbackError.localizedDescription)"
                 )
                 self?.tryStationsCache(completion: completion, fallbackError: fallbackError)
             }
@@ -370,54 +371,55 @@ class NetworkManager {
             URLQueryItem(name: "languageId", value: languageId),
         ]
 
-        // Try proxy first
+        // Try official API first
         performSingleTrainScheduleRequest(
-            baseURL: proxyTimetableBaseURL,
+            baseURL: originalTimetableBaseURL,
             queryItems: queryItems,
-            useApiKey: false,
+            useApiKey: true,
             cacheKey: cacheKey,
             processData: processTrainData
         ) { [weak self] result in
             switch result {
             case .success(let trains):
-                logInfo("Successfully fetched train schedule from proxy API")
+                logInfo("Successfully fetched train schedule from official API")
                 completion(.success(trains))
 
             case .failure(let error):
-                logWarning("Proxy API failed: \(error.localizedDescription). Trying fallback...")
-                self?.tryOriginalTrainScheduleAPI(
+                logWarning(
+                    "Official API failed: \(error.localizedDescription). Trying proxy fallback...")
+                self?.tryProxyTrainScheduleAPI(
                     queryItems: queryItems,
                     cacheKey: cacheKey,
                     processData: processTrainData,
-                    proxyError: error,
+                    officialError: error,
                     completion: completion
                 )
             }
         }
     }
 
-    private func tryOriginalTrainScheduleAPI(
+    private func tryProxyTrainScheduleAPI(
         queryItems: [URLQueryItem],
         cacheKey: String,
         processData: @escaping (Data) throws -> [TrainSchedule],
-        proxyError: Error,
+        officialError: Error,
         completion: @escaping (Result<[TrainSchedule], Error>) -> Void
     ) {
         performSingleTrainScheduleRequest(
-            baseURL: originalTimetableBaseURL,
+            baseURL: proxyTimetableBaseURL,
             queryItems: queryItems,
-            useApiKey: true,
+            useApiKey: false,
             cacheKey: cacheKey,
             processData: processData
         ) { [weak self] fallbackResult in
             switch fallbackResult {
             case .success(let trains):
-                logInfo("Successfully fetched train schedule from original API (fallback)")
+                logInfo("Successfully fetched train schedule from proxy API (fallback)")
                 completion(.success(trains))
 
             case .failure(let fallbackError):
                 logError(
-                    "Both APIs failed. Proxy: \(proxyError.localizedDescription), Original: \(fallbackError.localizedDescription)"
+                    "Both APIs failed. Official: \(officialError.localizedDescription), Proxy: \(fallbackError.localizedDescription)"
                 )
                 self?.tryTrainScheduleCache(
                     cacheKey: cacheKey,
