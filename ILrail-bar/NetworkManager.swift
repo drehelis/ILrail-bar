@@ -6,14 +6,7 @@ class NetworkManager {
 
     private let githubApiURL = "https://api.github.com/repos/drehelis/ilrail-bar/releases/latest"
 
-    // Proxy URLs (primary)
-    private let proxyApiBaseURL = "https://ilrail-bar-proxy-bmt2z7lcca-zf.a.run.app"
-    private var proxyTimetableBaseURL: String {
-        return proxyApiBaseURL + "/timetable"
-    }
-    private var proxyStationsBaseURL: String { return proxyApiBaseURL + "/stations" }
-
-    // Original API URLs (fallback)
+    // Official API URLs (primary)
     private let originalApiKey = "5e64d66cf03f4547bcac5de2de06b566"
     private let originalApiBaseURL = "https://rail-api.rail.co.il"
     private var originalTimetableBaseURL: String {
@@ -22,6 +15,13 @@ class NetworkManager {
     private var originalStationsBaseURL: String {
         return originalApiBaseURL + "/common/api/v1/stations"
     }
+
+    // Proxy URLs (fallback)
+    private let proxyApiBaseURL = "https://ilrail-bar-proxy-bmt2z7lcca-zf.a.run.app"
+    private var proxyTimetableBaseURL: String {
+        return proxyApiBaseURL + "/timetable"
+    }
+    private var proxyStationsBaseURL: String { return proxyApiBaseURL + "/stations" }
 
     private let madeUpUserAgent = "ILrail-bar/1.0 macOS"
 
