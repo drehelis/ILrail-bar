@@ -5,11 +5,24 @@ class NetworkManager {
     static let shared = NetworkManager()
 
     private let githubApiURL = "https://api.github.com/repos/drehelis/ilrail-bar/releases/latest"
-    private let apiBaseURL = "https://ilrail-bar-proxy-bmt2z7lcca-zf.a.run.app"
-    private var timetableBaseURL: String {
-        return apiBaseURL + "/timetable"
+
+    // Proxy URLs (primary)
+    private let proxyApiBaseURL = "https://ilrail-bar-proxy-bmt2z7lcca-zf.a.run.app"
+    private var proxyTimetableBaseURL: String {
+        return proxyApiBaseURL + "/timetable"
     }
-    private var stationsBaseURL: String { return apiBaseURL + "/stations" }
+    private var proxyStationsBaseURL: String { return proxyApiBaseURL + "/stations" }
+
+    // Original API URLs (fallback)
+    private let originalApiKey = "5e64d66cf03f4547bcac5de2de06b566"
+    private let originalApiBaseURL = "https://rail-api.rail.co.il"
+    private var originalTimetableBaseURL: String {
+        return originalApiBaseURL + "/rjpa/api/v1/timetable/searchTrainLuzForDateTime"
+    }
+    private var originalStationsBaseURL: String {
+        return originalApiBaseURL + "/common/api/v1/stations"
+    }
+
     private let madeUpUserAgent = "ILrail-bar/1.0 macOS"
 
     private let languageId = "Hebrew"
@@ -63,75 +76,100 @@ class NetworkManager {
         return "\(CacheKeys.timetablePrefix)\(fromStation)_\(toStation)"
     }
 
+    // Helper method to create request with appropriate headers
+    private func createRequest(url: URL, useApiKey: Bool = false) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.addValue(madeUpUserAgent, forHTTPHeaderField: "User-Agent")
+        if useApiKey {
+            request.addValue(originalApiKey, forHTTPHeaderField: "ocp-apim-subscription-key")
+        }
+        return request
+    }
+
     func fetchStations(completion: @escaping (Result<[RemoteStation], NetworkError>) -> Void) {
-        guard var components = URLComponents(string: stationsBaseURL) else {
+        let queryItems = [
+            URLQueryItem(name: "languageId", value: "English"),
+            URLQueryItem(name: "systemType", value: systemType),
+        ]
+
+        // Try proxy first
+        performSingleStationsRequest(
+            baseURL: proxyStationsBaseURL,
+            queryItems: queryItems,
+            useApiKey: false
+        ) { [weak self] result in
+            switch result {
+            case .success(let stations):
+                logInfo("Successfully fetched stations from proxy API")
+                completion(.success(stations))
+
+            case .failure(let error):
+                logWarning("Proxy API failed: \(error.localizedDescription). Trying fallback...")
+
+                // Fallback to original API
+                self?.performSingleStationsRequest(
+                    baseURL: self?.originalStationsBaseURL ?? "",
+                    queryItems: queryItems,
+                    useApiKey: true
+                ) { fallbackResult in
+                    switch fallbackResult {
+                    case .success(let stations):
+                        logInfo("Successfully fetched stations from original API (fallback)")
+                        completion(.success(stations))
+
+                    case .failure(let fallbackError):
+                        logError(
+                            "Both APIs failed. Proxy: \(error.localizedDescription), Original: \(fallbackError.localizedDescription)"
+                        )
+
+                        // Try cache as last resort
+                        if let cachedDataInfo = self?.getCachedData(forKey: CacheKeys.stationsData)
+                        {
+                            do {
+                                let response = try JSONDecoder().decode(
+                                    StationResponse.self, from: cachedDataInfo.data)
+                                logInfo(
+                                    "Using cached stations from \(cachedDataInfo.ageInMinutes) minutes ago as last resort"
+                                )
+                                completion(.success(response.result))
+                            } catch {
+                                logError(
+                                    "Cached data is also invalid: \(error.localizedDescription)")
+                                completion(.failure(.cacheError))
+                            }
+                        } else {
+                            completion(.failure(fallbackError))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func performSingleStationsRequest(
+        baseURL: String,
+        queryItems: [URLQueryItem],
+        useApiKey: Bool,
+        completion: @escaping (Result<[RemoteStation], NetworkError>) -> Void
+    ) {
+        guard var components = URLComponents(string: baseURL) else {
             completion(.failure(.invalidURL))
             return
         }
 
-        components.queryItems = [
-            URLQueryItem(name: "languageId", value: "English"),
-            URLQueryItem(name: "systemType", value: systemType),
-        ]
+        components.queryItems = queryItems
 
         guard let url = components.url else {
             completion(.failure(.invalidURL))
             return
         }
 
-        var request = URLRequest(url: url)
-        request.addValue(madeUpUserAgent, forHTTPHeaderField: "User-Agent")
-
-        // Log the full URL for debugging
+        let request = createRequest(url: url, useApiKey: useApiKey)
         logInfo("Making network request to: \(url.absoluteString)")
 
-        // Define a function to process station data
-        let processStationData = { (data: Data) -> [RemoteStation] in
-            do {
-                let response = try JSONDecoder().decode(StationResponse.self, from: data)
-                return response.result
-            } catch {
-                logError("Error decoding stations: \(error.localizedDescription)")
-
-                // Try to decode the structure of the JSON to understand the format
-                do {
-                    if let json = try JSONSerialization.jsonObject(with: data, options: [])
-                        as? [String: Any]
-                    {
-                        logDebug("JSON is a dictionary with keys: \(json.keys)")
-                    } else if let json = try JSONSerialization.jsonObject(with: data, options: [])
-                        as? [[String: Any]]
-                    {
-                        logDebug("JSON is an array of dictionaries with \(json.count) items")
-                    } else {
-                        logDebug("JSON is in an unknown format")
-                    }
-                } catch {
-                    logError("Failed to parse JSON: \(error.localizedDescription)")
-                }
-
-                throw NetworkError.decodingError
-            }
-        }
-
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             if let error = error {
-                logError("Error fetching stations: \(error.localizedDescription)")
-
-                // Try to use cached data if available
-                if let cachedDataInfo = self.getCachedData(forKey: CacheKeys.stationsData) {
-                    do {
-                        let stations = try processStationData(cachedDataInfo.data)
-                        logInfo(
-                            "Using cached stations data from \(cachedDataInfo.ageInMinutes) minutes ago"
-                        )
-                        completion(.success(stations))
-                    } catch {
-                        completion(.failure(.cacheError))
-                    }
-                } else {
-                    completion(.failure(.serverError(error.localizedDescription)))
-                }
+                completion(.failure(.serverError(error.localizedDescription)))
                 return
             }
 
@@ -149,13 +187,12 @@ class NetworkManager {
             }
 
             do {
-                let stations = try processStationData(data)
-
+                let response = try JSONDecoder().decode(StationResponse.self, from: data)
                 // Cache the data for future use
-                self.cacheData(data, forKey: CacheKeys.stationsData)
-
-                completion(.success(stations))
+                self?.cacheData(data, forKey: CacheKeys.stationsData)
+                completion(.success(response.result))
             } catch {
+                logError("Error decoding stations: \(error.localizedDescription)")
                 completion(.failure(.decodingError))
             }
         }.resume()
@@ -182,7 +219,7 @@ class NetworkManager {
         let cacheKey = getTimetableCacheKey(fromStation: fromStationId, toStation: toStationId)
 
         // Create a function to process API response data
-        let processData = { (data: Data) -> [TrainSchedule] in
+        let processTrainData: (Data) throws -> [TrainSchedule] = { data in
             do {
                 let decoder = JSONDecoder()
                 decoder.dateDecodingStrategy = .custom { decoder in
@@ -287,7 +324,7 @@ class NetworkManager {
                 ageInMinutes: cacheAgeInMinutes, refreshIntervalSeconds: refreshIntervalSeconds)
             {
                 do {
-                    let cachedTrains = try processData(cachedDataInfo.data)
+                    let cachedTrains = try processTrainData(cachedDataInfo.data)
                     logInfo(
                         "Using cached timetable data from \(cacheAgeInMinutes) minutes ago (within refresh interval)"
                     )
@@ -313,8 +350,7 @@ class NetworkManager {
         // If we reached here, we need to fetch from the network
         logInfo("Fetching trains from \(preferences.fromStation) to \(preferences.toStation)")
 
-        var components = URLComponents(string: timetableBaseURL)
-        components?.queryItems = [
+        let queryItems = [
             URLQueryItem(name: "fromStation", value: fromStationId),
             URLQueryItem(name: "toStation", value: toStationId),
             URLQueryItem(name: "date", value: currentDate),
@@ -324,72 +360,92 @@ class NetworkManager {
             URLQueryItem(name: "languageId", value: languageId),
         ]
 
-        guard let url = components?.url else {
-            // If we can't form the URL but have cache (which is outdated), use it anyway as fallback
-            if let cachedDataInfo = getCachedData(forKey: cacheKey) {
-                do {
-                    let cachedTrains = try processData(cachedDataInfo.data)
-                    logInfo("Using outdated cached data as fallback due to URL formation error")
-                    completion(.success(cachedTrains))
-                } catch {
-                    logWarning(
-                        "Error processing cached data: \(error.localizedDescription). No valid data available."
-                    )
-                    completion(.failure(NetworkError.invalidURL))
-                }
-                return
-            }
+        // Try proxy first
+        performSingleTrainScheduleRequest(
+            baseURL: proxyTimetableBaseURL,
+            queryItems: queryItems,
+            useApiKey: false,
+            cacheKey: cacheKey,
+            processData: processTrainData
+        ) { [weak self] result in
+            switch result {
+            case .success(let trains):
+                logInfo("Successfully fetched train schedule from proxy API")
+                completion(.success(trains))
 
+            case .failure(let error):
+                logWarning("Proxy API failed: \(error.localizedDescription). Trying fallback...")
+
+                // Fallback to original API
+                self?.performSingleTrainScheduleRequest(
+                    baseURL: self?.originalTimetableBaseURL ?? "",
+                    queryItems: queryItems,
+                    useApiKey: true,
+                    cacheKey: cacheKey,
+                    processData: processTrainData
+                ) { fallbackResult in
+                    switch fallbackResult {
+                    case .success(let trains):
+                        logInfo("Successfully fetched train schedule from original API (fallback)")
+                        completion(.success(trains))
+
+                    case .failure(let fallbackError):
+                        logError(
+                            "Both APIs failed. Proxy: \(error.localizedDescription), Original: \(fallbackError.localizedDescription)"
+                        )
+
+                        // Try cache as last resort
+                        if let cachedDataInfo = self?.getCachedData(forKey: cacheKey) {
+                            do {
+                                let cachedTrains = try processTrainData(cachedDataInfo.data)
+                                logInfo(
+                                    "Using cached train schedule from \(cachedDataInfo.ageInMinutes) minutes ago as last resort"
+                                )
+                                completion(.success(cachedTrains))
+                            } catch {
+                                logError(
+                                    "Cached data is also invalid: \(error.localizedDescription)")
+                                completion(.failure(error))
+                            }
+                        } else {
+                            completion(.failure(fallbackError))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func performSingleTrainScheduleRequest(
+        baseURL: String,
+        queryItems: [URLQueryItem],
+        useApiKey: Bool,
+        cacheKey: String,
+        processData: @escaping (Data) throws -> [TrainSchedule],
+        completion: @escaping (Result<[TrainSchedule], Error>) -> Void
+    ) {
+        guard var components = URLComponents(string: baseURL) else {
             completion(.failure(NetworkError.invalidURL))
             return
         }
 
-        var request = URLRequest(url: url)
-        request.addValue(madeUpUserAgent, forHTTPHeaderField: "User-Agent")
+        components.queryItems = queryItems
 
-        // Log the full URL for debugging
+        guard let url = components.url else {
+            completion(.failure(NetworkError.invalidURL))
+            return
+        }
+
+        let request = createRequest(url: url, useApiKey: useApiKey)
         logInfo("Making network request to: \(url.absoluteString)")
 
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             if let error = error {
-                logWarning("Network error: \(error.localizedDescription)")
-
-                // Try to use cached data as fallback, even if it's outdated
-                if let cachedDataInfo = self.getCachedData(forKey: cacheKey) {
-                    do {
-                        let cachedTrains = try processData(cachedDataInfo.data)
-                        logInfo(
-                            "Using cached timetable data from \(cachedDataInfo.ageInMinutes) minutes ago as fallback"
-                        )
-                        completion(.success(cachedTrains))
-                    } catch {
-                        logWarning(
-                            "Error processing cached data: \(error.localizedDescription). No valid data available."
-                        )
-                        completion(.failure(error))
-                    }
-                } else {
-                    completion(.failure(error))
-                }
+                completion(.failure(error))
                 return
             }
 
             guard let data = data else {
-                // Try to use cached data as fallback for no data
-                if let cachedDataInfo = self.getCachedData(forKey: cacheKey) {
-                    do {
-                        let cachedTrains = try processData(cachedDataInfo.data)
-                        logInfo("Using cached data as fallback due to empty response")
-                        completion(.success(cachedTrains))
-                    } catch {
-                        logWarning(
-                            "Error processing cached data: \(error.localizedDescription). No valid data available."
-                        )
-                        completion(.failure(NetworkError.noData))
-                    }
-                    return
-                }
-
                 completion(.failure(NetworkError.noData))
                 return
             }
@@ -398,49 +454,17 @@ class NetworkManager {
                 !(200...299).contains(httpResponse.statusCode)
             {
                 let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown server error"
-
-                // Try to use cached data as fallback for server errors
-                if let cachedDataInfo = self.getCachedData(forKey: cacheKey) {
-                    do {
-                        let cachedTrains = try processData(cachedDataInfo.data)
-                        logInfo(
-                            "Using cached data as fallback due to server error: \(errorMessage)")
-                        completion(.success(cachedTrains))
-                    } catch {
-                        logWarning(
-                            "Error processing cached data: \(error.localizedDescription). No valid data available."
-                        )
-                        completion(.failure(NetworkError.serverError(errorMessage)))
-                    }
-                    return
-                }
-
                 completion(.failure(NetworkError.serverError(errorMessage)))
                 return
             }
 
-            // Process the fresh data from the network
             do {
-                let sortedTrains = try processData(data)
+                let trains = try processData(data)
                 // Cache the data for future use
-                self.cacheData(data, forKey: cacheKey)
-                completion(.success(sortedTrains))
+                self?.cacheData(data, forKey: cacheKey)
+                completion(.success(trains))
             } catch {
-                // Try to use cached data as fallback for parsing errors
-                if let cachedDataInfo = self.getCachedData(forKey: cacheKey) {
-                    do {
-                        let cachedTrains = try processData(cachedDataInfo.data)
-                        logInfo("Using cached data as fallback due to parsing error")
-                        completion(.success(cachedTrains))
-                    } catch {
-                        logWarning(
-                            "Error processing cached data: \(error.localizedDescription). No valid data available."
-                        )
-                        completion(.failure(error))
-                    }
-                    return
-                }
-
+                logError("Error processing train schedule: \(error.localizedDescription)")
                 completion(.failure(error))
             }
         }.resume()
