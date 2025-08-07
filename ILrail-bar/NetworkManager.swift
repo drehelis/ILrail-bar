@@ -88,7 +88,7 @@ class NetworkManager {
 
     func fetchStations(completion: @escaping (Result<[RemoteStation], NetworkError>) -> Void) {
         let queryItems = [
-            URLQueryItem(name: "languageId", value: "English"),
+            URLQueryItem(name: "languageId", value: languageId),
             URLQueryItem(name: "systemType", value: systemType),
         ]
 
@@ -105,44 +105,54 @@ class NetworkManager {
 
             case .failure(let error):
                 logWarning("Proxy API failed: \(error.localizedDescription). Trying fallback...")
-
-                // Fallback to original API
-                self?.performSingleStationsRequest(
-                    baseURL: self?.originalStationsBaseURL ?? "",
-                    queryItems: queryItems,
-                    useApiKey: true
-                ) { fallbackResult in
-                    switch fallbackResult {
-                    case .success(let stations):
-                        logInfo("Successfully fetched stations from original API (fallback)")
-                        completion(.success(stations))
-
-                    case .failure(let fallbackError):
-                        logError(
-                            "Both APIs failed. Proxy: \(error.localizedDescription), Original: \(fallbackError.localizedDescription)"
-                        )
-
-                        // Try cache as last resort
-                        if let cachedDataInfo = self?.getCachedData(forKey: CacheKeys.stationsData)
-                        {
-                            do {
-                                let response = try JSONDecoder().decode(
-                                    StationResponse.self, from: cachedDataInfo.data)
-                                logInfo(
-                                    "Using cached stations from \(cachedDataInfo.ageInMinutes) minutes ago as last resort"
-                                )
-                                completion(.success(response.result))
-                            } catch {
-                                logError(
-                                    "Cached data is also invalid: \(error.localizedDescription)")
-                                completion(.failure(.cacheError))
-                            }
-                        } else {
-                            completion(.failure(fallbackError))
-                        }
-                    }
-                }
+                self?.tryOriginalStationsAPI(
+                    queryItems: queryItems, proxyError: error, completion: completion)
             }
+        }
+    }
+
+    private func tryOriginalStationsAPI(
+        queryItems: [URLQueryItem],
+        proxyError: NetworkError,
+        completion: @escaping (Result<[RemoteStation], NetworkError>) -> Void
+    ) {
+        performSingleStationsRequest(
+            baseURL: originalStationsBaseURL,
+            queryItems: queryItems,
+            useApiKey: true
+        ) { [weak self] fallbackResult in
+            switch fallbackResult {
+            case .success(let stations):
+                logInfo("Successfully fetched stations from original API (fallback)")
+                completion(.success(stations))
+
+            case .failure(let fallbackError):
+                logError(
+                    "Both APIs failed. Proxy: \(proxyError.localizedDescription), Original: \(fallbackError.localizedDescription)"
+                )
+                self?.tryStationsCache(completion: completion, fallbackError: fallbackError)
+            }
+        }
+    }
+
+    private func tryStationsCache(
+        completion: @escaping (Result<[RemoteStation], NetworkError>) -> Void,
+        fallbackError: NetworkError
+    ) {
+        guard let cachedDataInfo = getCachedData(forKey: CacheKeys.stationsData) else {
+            completion(.failure(fallbackError))
+            return
+        }
+
+        do {
+            let response = try JSONDecoder().decode(StationResponse.self, from: cachedDataInfo.data)
+            logInfo(
+                "Using cached stations from \(cachedDataInfo.ageInMinutes) minutes ago as last resort"
+            )
+            completion(.success(response.result))
+        } catch {
+            logError("Cached data is also invalid: \(error.localizedDescription)")
+            completion(.failure(.cacheError))
         }
     }
 
@@ -375,44 +385,70 @@ class NetworkManager {
 
             case .failure(let error):
                 logWarning("Proxy API failed: \(error.localizedDescription). Trying fallback...")
-
-                // Fallback to original API
-                self?.performSingleTrainScheduleRequest(
-                    baseURL: self?.originalTimetableBaseURL ?? "",
+                self?.tryOriginalTrainScheduleAPI(
                     queryItems: queryItems,
-                    useApiKey: true,
                     cacheKey: cacheKey,
-                    processData: processTrainData
-                ) { fallbackResult in
-                    switch fallbackResult {
-                    case .success(let trains):
-                        logInfo("Successfully fetched train schedule from original API (fallback)")
-                        completion(.success(trains))
-
-                    case .failure(let fallbackError):
-                        logError(
-                            "Both APIs failed. Proxy: \(error.localizedDescription), Original: \(fallbackError.localizedDescription)"
-                        )
-
-                        // Try cache as last resort
-                        if let cachedDataInfo = self?.getCachedData(forKey: cacheKey) {
-                            do {
-                                let cachedTrains = try processTrainData(cachedDataInfo.data)
-                                logInfo(
-                                    "Using cached train schedule from \(cachedDataInfo.ageInMinutes) minutes ago as last resort"
-                                )
-                                completion(.success(cachedTrains))
-                            } catch {
-                                logError(
-                                    "Cached data is also invalid: \(error.localizedDescription)")
-                                completion(.failure(error))
-                            }
-                        } else {
-                            completion(.failure(fallbackError))
-                        }
-                    }
-                }
+                    processData: processTrainData,
+                    proxyError: error,
+                    completion: completion
+                )
             }
+        }
+    }
+
+    private func tryOriginalTrainScheduleAPI(
+        queryItems: [URLQueryItem],
+        cacheKey: String,
+        processData: @escaping (Data) throws -> [TrainSchedule],
+        proxyError: Error,
+        completion: @escaping (Result<[TrainSchedule], Error>) -> Void
+    ) {
+        performSingleTrainScheduleRequest(
+            baseURL: originalTimetableBaseURL,
+            queryItems: queryItems,
+            useApiKey: true,
+            cacheKey: cacheKey,
+            processData: processData
+        ) { [weak self] fallbackResult in
+            switch fallbackResult {
+            case .success(let trains):
+                logInfo("Successfully fetched train schedule from original API (fallback)")
+                completion(.success(trains))
+
+            case .failure(let fallbackError):
+                logError(
+                    "Both APIs failed. Proxy: \(proxyError.localizedDescription), Original: \(fallbackError.localizedDescription)"
+                )
+                self?.tryTrainScheduleCache(
+                    cacheKey: cacheKey,
+                    processData: processData,
+                    completion: completion,
+                    fallbackError: fallbackError
+                )
+            }
+        }
+    }
+
+    private func tryTrainScheduleCache(
+        cacheKey: String,
+        processData: @escaping (Data) throws -> [TrainSchedule],
+        completion: @escaping (Result<[TrainSchedule], Error>) -> Void,
+        fallbackError: Error
+    ) {
+        guard let cachedDataInfo = getCachedData(forKey: cacheKey) else {
+            completion(.failure(fallbackError))
+            return
+        }
+
+        do {
+            let cachedTrains = try processData(cachedDataInfo.data)
+            logInfo(
+                "Using cached train schedule from \(cachedDataInfo.ageInMinutes) minutes ago as last resort"
+            )
+            completion(.success(cachedTrains))
+        } catch {
+            logError("Cached data is also invalid: \(error.localizedDescription)")
+            completion(.failure(error))
         }
     }
 
