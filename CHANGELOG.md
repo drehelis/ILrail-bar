@@ -15,7 +15,7 @@ BUMP:major - Increases the major version (x.0.0)
 <!-- BUMP:patch -->
 ## v2.9.1 - 2025-08-07
 ### Added
-- **Fallback System**: Added automatic fallback from proxy endpoint to original Israel Railways API if proxy fails
+- **Fallback System**: Added automatic fallback from original Israel Railways API to proxy endpoint if fails
 
 <!-- BUMP:minor -->
 ## v2.9.0 - 2025-08-06
