@@ -88,7 +88,7 @@ class NetworkManager {
 
     func fetchStations(completion: @escaping (Result<[RemoteStation], NetworkError>) -> Void) {
         let queryItems = [
-            URLQueryItem(name: "languageId", value: languageId),
+            URLQueryItem(name: "languageId", value: "English"),
             URLQueryItem(name: "systemType", value: systemType),
         ]
 
