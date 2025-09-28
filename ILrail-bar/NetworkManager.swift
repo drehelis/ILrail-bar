@@ -10,7 +10,7 @@ class NetworkManager {
     private let originalApiKey = "5e64d66cf03f4547bcac5de2de06b566"
     private let originalApiBaseURL = "https://rail-api.rail.co.il"
     private var originalTimetableBaseURL: String {
-        return originalApiBaseURL + "/rjpa/api/v1/timetable/searchTrainLuzForDateTime"
+        return originalApiBaseURL + "/rjpa/api/v1/timetable/searchTrain"
     }
     private var originalStationsBaseURL: String {
         return originalApiBaseURL + "/common/api/v1/stations"
@@ -26,7 +26,7 @@ class NetworkManager {
     private let madeUpUserAgent = "ILrail-bar/1.0 macOS"
 
     private let languageId = "Hebrew"
-    private let scheduleType = "1"
+    private let scheduleType = "ByDeparture"
     private let systemType = "2"
 
     enum NetworkError: Error {
@@ -77,9 +77,16 @@ class NetworkManager {
     }
 
     // Helper method to create request with appropriate headers
-    private func createRequest(url: URL, useApiKey: Bool = false) -> URLRequest {
+    private func createRequest(url: URL, useApiKey: Bool = false, jsonBody: Data? = nil) -> URLRequest {
         var request = URLRequest(url: url)
         request.addValue(madeUpUserAgent, forHTTPHeaderField: "User-Agent")
+
+        if let jsonBody = jsonBody {
+            request.httpMethod = "POST"
+            request.httpBody = jsonBody
+            request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
+
         if useApiKey {
             request.addValue(originalApiKey, forHTTPHeaderField: "ocp-apim-subscription-key")
         }
@@ -462,50 +469,59 @@ class NetworkManager {
         processData: @escaping (Data) throws -> [TrainSchedule],
         completion: @escaping (Result<[TrainSchedule], Error>) -> Void
     ) {
-        guard var components = URLComponents(string: baseURL) else {
+        guard let url = URL(string: baseURL) else {
             completion(.failure(NetworkError.invalidURL))
             return
         }
 
-        components.queryItems = queryItems
+        // Convert query items to JSON body
+        var jsonBody: [String: Any] = [
+            "methodName": "searchTrainLuzForDateTime"
+        ]
 
-        guard let url = components.url else {
-            completion(.failure(NetworkError.invalidURL))
-            return
+        for item in queryItems {
+            if let value = item.value {
+                jsonBody[item.name] = value
+            }
         }
 
-        let request = createRequest(url: url, useApiKey: useApiKey)
-        logInfo("Making network request to: \(url.absoluteString)")
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: jsonBody)
+            let request = createRequest(url: url, useApiKey: useApiKey, jsonBody: jsonData)
+            logInfo("Making network request to: \(url.absoluteString)")
 
-        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
+            URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
 
-            guard let data = data else {
-                completion(.failure(NetworkError.noData))
-                return
-            }
+                guard let data = data else {
+                    completion(.failure(NetworkError.noData))
+                    return
+                }
 
-            if let httpResponse = response as? HTTPURLResponse,
-                !(200...299).contains(httpResponse.statusCode)
-            {
-                let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown server error"
-                completion(.failure(NetworkError.serverError(errorMessage)))
-                return
-            }
+                if let httpResponse = response as? HTTPURLResponse,
+                    !(200...299).contains(httpResponse.statusCode)
+                {
+                    let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown server error"
+                    completion(.failure(NetworkError.serverError(errorMessage)))
+                    return
+                }
 
-            do {
-                let trains = try processData(data)
-                // Cache the data for future use
-                self?.cacheData(data, forKey: cacheKey)
-                completion(.success(trains))
-            } catch {
-                logError("Error processing train schedule: \(error.localizedDescription)")
-                completion(.failure(error))
-            }
-        }.resume()
+                do {
+                    let trains = try processData(data)
+                    // Cache the data for future use
+                    self?.cacheData(data, forKey: cacheKey)
+                    completion(.success(trains))
+                } catch {
+                    logError("Error processing train schedule: \(error.localizedDescription)")
+                    completion(.failure(error))
+                }
+            }.resume()
+        } catch {
+            completion(.failure(NetworkError.serverError("Failed to create JSON request body")))
+        }
     }
 
     func checkForUpdates(completion: @escaping (Result<Bool, NetworkError>) -> Void) {
