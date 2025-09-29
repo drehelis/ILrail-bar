@@ -13,7 +13,7 @@ BUMP:major - Increases the major version (x.0.0)
 -->
 
 <!-- BUMP:minor -->
-## v2.9.2 - 2025-09-29
+## v2.10.0 - 2025-09-29
 ### Changed
 - **BREAKING CHANGE**: Updated to support upstream API changes from rail service provider
 - Mandatory upgrade required for continued functionality
@@ -119,7 +119,7 @@ BUMP:major - Increases the major version (x.0.0)
 - fix: Adjust How-to-Install `README.txt` 
 
 <!-- BUMP:patch -->
-## v1.0.2v - 2024-04-19
+## v1.0.2 - 2024-04-19
 ### Added
 - feat: Add reverse direction option
 
