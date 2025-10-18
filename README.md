@@ -28,13 +28,21 @@ A sleek and efficient macOS menu bar app for tracking Israel Railways train sche
 
 ## Installation
 
-### Option 1: Direct Download
+### Option 1: Using Homebrew (Recommended):
+```
+brew tap drehelis/tap
+
+# Install
+brew install --cask ILrail-bar
+```
+
+### Option 2: Direct Download
 
 1. Download the latest release from the [Releases](https://github.com/drehelis/ILrail-bar/releases) page
 2. Open the DMG file **(Read README.txt!)** and drag ILrail-bar to your Applications folder
 3. Launch the app from your Applications folder
 
-### Option 2: Build from Source
+### Option 3: Build from Source
 
 1. Clone this repository:
    ```bash
