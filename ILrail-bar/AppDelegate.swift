@@ -349,6 +349,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
         if let button = statusItem.button {
             // Update station names in state before showing
             updateStationNames()
+
+            // Set content size to ensure proper positioning (required for macOS 15+)
+            if let hostingController = popover.contentViewController as? NSHostingController<TrainPopoverView> {
+                popover.contentSize = hostingController.view.fittingSize
+            }
+
+            // For menu bar items, use .minY to position popover below the item
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         }
     }
@@ -388,8 +395,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             )
 
             // Set the view in the popover
-            preferencesPopover.contentViewController = NSHostingController(
-                rootView: preferencesView)
+            let hostingController = NSHostingController(rootView: preferencesView)
+            preferencesPopover.contentViewController = hostingController
+
+            // Set content size to ensure proper positioning (required for macOS 15+)
+            preferencesPopover.contentSize = hostingController.view.fittingSize
 
             // Show the popover
             preferencesPopover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
@@ -737,6 +747,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
 
         // Apply the favorite route - this changes the current stations
         if PreferencesManager.shared.applyFavoriteRoute(id: routeId) {
+            // Update the station names in the popover state immediately
+            updateStationNames()
+
             // Trigger a refresh to show trains for the selected route
             NotificationCenter.default.post(name: .reloadPreferencesChanged, object: nil)
             // SwiftUI automatically updates the popover view - no manual update needed!
