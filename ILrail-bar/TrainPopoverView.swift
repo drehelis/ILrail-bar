@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 struct TrainPopoverView: View {
     @ObservedObject var state: PopoverState
@@ -38,6 +39,7 @@ struct TrainPopoverView: View {
                     TrainInfoRow(
                         train: state.trainSchedules[0]
                     )
+                    .id("\(state.trainSchedules[0].trainNumber)-\(state.trainSchedules[0].departureTime.timeIntervalSince1970)")
 
                     // Upcoming trains
                     if state.trainSchedules.count > 1 {
@@ -59,7 +61,8 @@ struct TrainPopoverView: View {
                             TrainInfoRow(
                                 train: state.trainSchedules[index]
                             )
-                            
+                            .id("\(state.trainSchedules[index].trainNumber)-\(state.trainSchedules[index].departureTime.timeIntervalSince1970)")
+
                             if index < maxItems - 1 {
                                 Divider()
                                     .padding(.horizontal)
@@ -170,8 +173,9 @@ struct TrainPopoverView: View {
 
 struct TrainInfoRow: View {
     let train: TrainSchedule
-    
+
     @State private var isCopied: Bool = false
+    @State private var hasNotification: Bool = false
     @State private var refreshID: UUID = UUID()
     
     var body: some View {
@@ -226,15 +230,23 @@ struct TrainInfoRow: View {
                 }
                 
                 Spacer()
-                
-                if isCopied {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                        .font(.caption)
-                } else {
-                    Image(systemName: "doc.on.doc")
-                        .foregroundStyle(.tertiary)
-                        .font(.caption)
+
+                HStack(spacing: 4) {
+                    if hasNotification {
+                        Image(systemName: "clock.fill")
+                            .foregroundColor(.blue)
+                            .font(.caption)
+                    }
+
+                    if isCopied {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.caption)
+                    } else {
+                        Image(systemName: "doc.on.doc")
+                            .foregroundStyle(.tertiary)
+                            .font(.caption)
+                    }
                 }
             }
             .contentShape(Rectangle())
@@ -242,35 +254,147 @@ struct TrainInfoRow: View {
             .padding(.vertical, 5)
         }
         .buttonStyle(PlainButtonStyle())
+        .contextMenu {
+            if hasNotification {
+                Button(action: {
+                    removeNotification()
+                }) {
+                    Label("Remove Notification", systemImage: "clock.badge.xmark")
+                }
+            } else {
+                Button(action: {
+                    scheduleNotification()
+                }) {
+                    Label("Set Notification", systemImage: "clock")
+                }
+            }
+
+            Button(action: {
+                copyTrainInfoToClipboard()
+                withAnimation { isCopied = true }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    withAnimation { isCopied = false }
+                }
+            }) {
+                Label("Copy", systemImage: "doc.on.doc")
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .trainDisplayUpdate)) { _ in
             refreshID = UUID()
         }
+        .onAppear {
+            checkForExistingNotification()
+        }
     }
-    
+
     private func timeString(for date: Date) -> String {
         return DateFormatters.timeFormatter.string(from: date)
     }
-    
+
     private func travelTimeString() -> String {
         return DateFormatters.formatTravelTime(from: train.departureTime, to: train.arrivalTime)
     }
-    
+
     private func copyTrainInfoToClipboard() {
         let departureTime = DateFormatters.timeFormatter.string(from: train.departureTime)
         let arrivalTime = DateFormatters.timeFormatter.string(from: train.arrivalTime)
         let travelTime = DateFormatters.formatTravelTime(from: train.departureTime, to: train.arrivalTime)
-        
+
         var trainInfo = "\(departureTime) → \(arrivalTime) [\(travelTime)] (\(train.trainChanges))"
-        
+
         // Add platform numbers
         if train.trainChanges > 0 && train.allPlatforms.count > 1 {
             trainInfo += " (Pl. #\(train.allPlatforms.joined(separator: ", ")))"
         } else if !train.platform.isEmpty {
             trainInfo += " (Pl. #\(train.platform))"
         }
-        
+
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(trainInfo, forType: .string)
+    }
+
+    private func checkForExistingNotification() {
+        let center = UNUserNotificationCenter.current()
+        let notificationId = "train-\(train.trainNumber)-\(train.departureTime.timeIntervalSince1970)"
+
+        center.getPendingNotificationRequests { requests in
+            let exists = requests.contains { $0.identifier == notificationId }
+            DispatchQueue.main.async {
+                self.hasNotification = exists
+            }
+        }
+    }
+
+    private func removeNotification() {
+        let center = UNUserNotificationCenter.current()
+        let notificationId = "train-\(train.trainNumber)-\(train.departureTime.timeIntervalSince1970)"
+
+        center.removePendingNotificationRequests(withIdentifiers: [notificationId])
+
+        DispatchQueue.main.async {
+            withAnimation {
+                self.hasNotification = false
+            }
+        }
+    }
+
+    private func scheduleNotification() {
+        let center = UNUserNotificationCenter.current()
+
+        // Request authorization if needed
+        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            if granted {
+                // Calculate notification time considering walking duration
+                let walkingTimeMin = PreferencesManager.shared.preferences.walkTimeDurationMin
+                let notificationTime = train.departureTime.addingTimeInterval(-Double(walkingTimeMin * 60))
+
+                // Only schedule if notification time is in the future
+                let now = Date()
+                guard notificationTime > now else {
+                    return
+                }
+
+                let content = UNMutableNotificationContent()
+                content.title = "Time to Leave!"
+
+                // Get destination station name - look up the full name from station ID
+                let toStationId = train.toStationName
+                let toStation = Station.allStations.first(where: { $0.id == toStationId })?.name ?? toStationId
+
+                // Build notification body
+                var body = "Your train to \(toStation) departs at \(timeString(for: train.departureTime))"
+                if !train.platform.isEmpty {
+                    body += " from plat. \(train.platform)"
+                }
+                if walkingTimeMin > 0 {
+                    body += " - start your \(walkingTimeMin) minute walk now"
+                }
+
+                content.body = body
+                content.sound = .default
+
+                // Calculate time interval from now
+                let timeInterval = notificationTime.timeIntervalSinceNow
+                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: timeInterval, repeats: false)
+
+                let request = UNNotificationRequest(
+                    identifier: "train-\(train.trainNumber)-\(train.departureTime.timeIntervalSince1970)",
+                    content: content,
+                    trigger: trigger
+                )
+
+                center.add(request) { error in
+                    if error == nil {
+                        logInfo("Notification for train \(train.trainNumber) is set for time \(notificationTime)")
+                        DispatchQueue.main.async {
+                            withAnimation {
+                                self.hasNotification = true
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
