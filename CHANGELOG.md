@@ -18,7 +18,8 @@ BUMP:major - Increases the major version (x.0.0)
 - Departure notifications: Set reminders for specific trains with right-click context menu
 
 ### Fixed
-- Remove explicit foreground color so title appears blurred on the inactive screen (by @snirye)
+- Remove explicit foreground color so title appears blurred on the inactive screen (by [Snir Yehuda
+](https://github.com/snirye))
 
 <!-- BUMP:minor -->
 ## v2.10.0 - 2025-09-29
