@@ -8,13 +8,6 @@ class PopoverState: ObservableObject {
     @Published var fromStationName: String = ""
     @Published var toStationName: String = ""
 
-    // Store the whole preferences object but expose specific properties to avoid nested observation issues
-    var preferences: StationPreferences = PreferencesManager.shared.preferences {
-        didSet {
-            objectWillChange.send()
-        }
-    }
-
     // Callbacks to AppDelegate for system-level operations
     var onRefresh: (() -> Void)?
     var onReverseDirection: (() -> Void)?

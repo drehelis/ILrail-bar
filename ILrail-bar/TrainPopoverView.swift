@@ -177,7 +177,9 @@ struct TrainInfoRow: View {
     @State private var isCopied: Bool = false
     @State private var hasNotification: Bool = false
     @State private var refreshID: UUID = UUID()
-    
+    @State private var showNotificationError: Bool = false
+    @State private var notificationErrorMessage: String = ""
+
     var body: some View {
         Button(action: {
             copyTrainInfoToClipboard()
@@ -285,6 +287,11 @@ struct TrainInfoRow: View {
         .onAppear {
             checkForExistingNotification()
         }
+        .alert("Notification Error", isPresented: $showNotificationError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(notificationErrorMessage)
+        }
     }
 
     private func timeString(for date: Date) -> String {
@@ -313,9 +320,13 @@ struct TrainInfoRow: View {
         NSPasteboard.general.setString(trainInfo, forType: .string)
     }
 
+    private func notificationIdentifier(for train: TrainSchedule) -> String {
+        return "train-\(train.trainNumber)-\(train.departureTime.timeIntervalSince1970)"
+    }
+
     private func checkForExistingNotification() {
         let center = UNUserNotificationCenter.current()
-        let notificationId = "train-\(train.trainNumber)-\(train.departureTime.timeIntervalSince1970)"
+        let notificationId = notificationIdentifier(for: train)
 
         center.getPendingNotificationRequests { requests in
             let exists = requests.contains { $0.identifier == notificationId }
@@ -327,7 +338,7 @@ struct TrainInfoRow: View {
 
     private func removeNotification() {
         let center = UNUserNotificationCenter.current()
-        let notificationId = "train-\(train.trainNumber)-\(train.departureTime.timeIntervalSince1970)"
+        let notificationId = notificationIdentifier(for: train)
 
         center.removePendingNotificationRequests(withIdentifiers: [notificationId])
 
@@ -343,53 +354,78 @@ struct TrainInfoRow: View {
 
         // Request authorization if needed
         center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-            if granted {
-                // Calculate notification time considering walking duration
-                let walkingTimeMin = PreferencesManager.shared.preferences.walkTimeDurationMin
-                let notificationTime = train.departureTime.addingTimeInterval(-Double(walkingTimeMin * 60))
-
-                // Only schedule if notification time is in the future
-                let now = Date()
-                guard notificationTime > now else {
-                    return
+            if let error = error {
+                logError("Notification authorization error: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self.notificationErrorMessage = "Failed to request notification permission: \(error.localizedDescription)"
+                    self.showNotificationError = true
                 }
+                return
+            }
 
-                let content = UNMutableNotificationContent()
-                content.title = "Time to Leave!"
-
-                // Get destination station name - look up the full name from station ID
-                let toStationId = train.toStationName
-                let toStation = Station.allStations.first(where: { $0.id == toStationId })?.name ?? toStationId
-
-                // Build notification body
-                var body = "Your train to \(toStation) departs at \(timeString(for: train.departureTime))"
-                if !train.platform.isEmpty {
-                    body += " from plat. \(train.platform)"
+            guard granted else {
+                logWarning("Notification permission denied by user")
+                DispatchQueue.main.async {
+                    self.notificationErrorMessage = "Notification permission denied. Please enable notifications in System Settings > Notifications > ILrail-bar."
+                    self.showNotificationError = true
                 }
-                if walkingTimeMin > 0 {
-                    body += " - start your \(walkingTimeMin) minute walk now"
+                return
+            }
+
+            // Calculate notification time considering walking duration
+            let walkingTimeMin = PreferencesManager.shared.preferences.walkTimeDurationMin
+            let notificationTime = train.departureTime.addingTimeInterval(-Double(walkingTimeMin * 60))
+
+            // Only schedule if notification time is in the future
+            let now = Date()
+            guard notificationTime > now else {
+                logWarning("Cannot set notification: train departure time has passed")
+                DispatchQueue.main.async {
+                    self.notificationErrorMessage = "Cannot set notification for a train that has already departed or is departing too soon."
+                    self.showNotificationError = true
                 }
+                return
+            }
 
-                content.body = body
-                content.sound = .default
+            let content = UNMutableNotificationContent()
+            content.title = "Time to Leave!"
 
-                // Calculate time interval from now
-                let timeInterval = notificationTime.timeIntervalSinceNow
-                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: timeInterval, repeats: false)
+            // Get destination station name - look up the full name from station ID
+            let toStationId = train.toStationName
+            let toStation = Station.allStations.first(where: { $0.id == toStationId })?.name ?? toStationId
 
-                let request = UNNotificationRequest(
-                    identifier: "train-\(train.trainNumber)-\(train.departureTime.timeIntervalSince1970)",
-                    content: content,
-                    trigger: trigger
-                )
+            // Build notification body
+            var body = "Your train to \(toStation) departs at \(timeString(for: train.departureTime))"
+            if !train.platform.isEmpty {
+                body += " from pl. \(train.platform)"
+            }
+            if walkingTimeMin > 0 {
+                body += " - start your \(walkingTimeMin) minute walk now"
+            }
 
-                center.add(request) { error in
-                    if error == nil {
+            content.body = body
+            content.sound = .default
+
+            // Calculate time interval from now
+            let timeInterval = notificationTime.timeIntervalSinceNow
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: timeInterval, repeats: false)
+
+            let request = UNNotificationRequest(
+                identifier: notificationIdentifier(for: train),
+                content: content,
+                trigger: trigger
+            )
+
+            center.add(request) { error in
+                DispatchQueue.main.async {
+                    if let error = error {
+                        logError("Failed to schedule notification: \(error.localizedDescription)")
+                        self.notificationErrorMessage = "Failed to schedule notification: \(error.localizedDescription)"
+                        self.showNotificationError = true
+                    } else {
                         logInfo("Notification for train \(train.trainNumber) is set for time \(notificationTime)")
-                        DispatchQueue.main.async {
-                            withAnimation {
-                                self.hasNotification = true
-                            }
+                        withAnimation {
+                            self.hasNotification = true
                         }
                     }
                 }
