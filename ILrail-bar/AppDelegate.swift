@@ -659,7 +659,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
 
             let attributes: [NSAttributedString.Key: Any] = [
                 .font: font,
-                .foregroundColor: NSColor.labelColor,
             ]
 
             button.attributedTitle = NSAttributedString(
