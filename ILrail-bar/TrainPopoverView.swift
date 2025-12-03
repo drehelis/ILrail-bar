@@ -1,99 +1,68 @@
 import SwiftUI
+import UserNotifications
 
 struct TrainPopoverView: View {
-    let trainSchedules: [TrainSchedule]
-    let fromStationName: String
-    let toStationName: String
-    let isRefreshing: Bool
-    let onReverseDirection: () -> Void
-    let onRefresh: () -> Void
-    let onPreferences: () -> Void
-    let onWebsite: () -> Void
-    let onAbout: () -> Void
-    let onQuit: () -> Void
-    let onSelectFavoriteRoute: (String) -> Void
-    
+    @ObservedObject var state: PopoverState
+
     @State private var showSaveRouteDialog: Bool = false
     @State private var showManageRoutesDialog: Bool = false
-    
-    init(trainSchedules: [TrainSchedule], 
-         fromStationName: String,
-         toStationName: String,
-         preferences: StationPreferences,
-         isRefreshing: Bool = false,
-         onReverseDirection: @escaping () -> Void,
-         onRefresh: @escaping () -> Void,
-         onPreferences: @escaping () -> Void,
-         onWebsite: @escaping () -> Void,
-         onAbout: @escaping () -> Void,
-         onQuit: @escaping () -> Void,
-         onSelectFavoriteRoute: @escaping (String) -> Void) {
-        self.trainSchedules = trainSchedules
-        self.fromStationName = fromStationName
-        self.toStationName = toStationName
-        self.isRefreshing = isRefreshing
-        self.onReverseDirection = onReverseDirection
-        self.onRefresh = onRefresh
-        self.onPreferences = onPreferences
-        self.onWebsite = onWebsite
-        self.onAbout = onAbout
-        self.onQuit = onQuit
-        self.onSelectFavoriteRoute = onSelectFavoriteRoute
-    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header with station names and reverse button
             HeaderView(
-                fromStationName: fromStationName,
-                toStationName: toStationName,
+                fromStationName: state.fromStationName,
+                toStationName: state.toStationName,
                 isDirectionReversed: PreferencesManager.shared.preferences.isDirectionReversed,
                 favoriteRoutes: PreferencesManager.shared.preferences.favoriteRoutes,
                 stations: Station.allStations,
-                onReverseDirection: onReverseDirection,
-                onSelectFavoriteRoute: onSelectFavoriteRoute
+                onReverseDirection: state.reverseDirection,
+                onSelectFavoriteRoute: state.selectFavoriteRoute
             )
-            
+
             Divider()
-            
-            // Next train section
-            if !trainSchedules.isEmpty {
+
+            // Content - trains or error
+            if !state.trainSchedules.isEmpty {
+                // Next train section
                 VStack(alignment: .leading, spacing: 0) {
                     HStack {
-                        Text("Next\(DateFormatters.formatDateLabel(for: trainSchedules[0].departureTime))")
+                        Text("Next\(DateFormatters.formatDateLabel(for: state.trainSchedules[0].departureTime))")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        
+
                         Spacer()
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 5)
-                        
+
                     TrainInfoRow(
-                        train: trainSchedules[0]
+                        train: state.trainSchedules[0]
                     )
-                    
+                    .id("\(state.trainSchedules[0].trainNumber)-\(state.trainSchedules[0].departureTime.timeIntervalSince1970)")
+
                     // Upcoming trains
-                    if trainSchedules.count > 1 {
+                    if state.trainSchedules.count > 1 {
                         Divider()
                             .padding(.vertical, 5)
-                        
+
                         // Get the date for the second train (first upcoming train)
-                        let upcomingDateLabel = DateFormatters.formatDateLabel(for: trainSchedules[1].departureTime)
-                        
+                        let upcomingDateLabel = DateFormatters.formatDateLabel(for: state.trainSchedules[1].departureTime)
+
                         Text("Upcoming\(upcomingDateLabel)")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal)
                             .padding(.bottom, 5)
-                            
+
                         // Only show configured number of trains
-                        let maxItems = min(trainSchedules.count, PreferencesManager.shared.preferences.upcomingItemsCount + 1)
+                        let maxItems = min(state.trainSchedules.count, PreferencesManager.shared.preferences.upcomingItemsCount + 1)
                         ForEach(1..<maxItems, id: \.self) { index in
                             TrainInfoRow(
-                                train: trainSchedules[index]
+                                train: state.trainSchedules[index]
                             )
-                            
+                            .id("\(state.trainSchedules[index].trainNumber)-\(state.trainSchedules[index].departureTime.timeIntervalSince1970)")
+
                             if index < maxItems - 1 {
                                 Divider()
                                     .padding(.horizontal)
@@ -113,42 +82,66 @@ struct TrainPopoverView: View {
                     }
                 }
                 .padding(.bottom, 5)
-                
+
                 Divider()
-            } else {
-                VStack(spacing: 20) {
+            } else if let errorMessage = state.errorMessage {
+                // Error view
+                VStack {
                     Spacer()
-                    Text("No trains found for route")
-                        .foregroundStyle(.secondary)
-                    
-                    let preferences = PreferencesManager.shared.preferences
-                    if preferences.walkTimeDurationMin > 0 || preferences.maxTrainChanges != -1 {
-                        VStack(spacing: 5) {
-                            Text("This may be due to active filters")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+
+                    HStack {
+                        Spacer()
+
+                        if errorMessage == "No trains found for route" {
+                            VStack(spacing: 10) {
+                                Image(systemName: "train.side.rear.car")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(.secondary)
+                                Text(errorMessage)
+                                    .foregroundColor(.secondary)
+
+                                let preferences = PreferencesManager.shared.preferences
+                                if preferences.walkTimeDurationMin > 0 || preferences.maxTrainChanges != -1 {
+                                    VStack(spacing: 5) {
+                                        Text("This may be due to active filters")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            }
+                        } else {
+                            VStack(spacing: 10) {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(.red)
+                                Text(errorMessage)
+                                    .foregroundColor(.red)
+                            }
                         }
+
+                        Spacer()
                     }
+
                     Spacer()
                 }
-                .frame(height: 100)
-                
+                .frame(height: 180)
+
                 Divider()
             }
             
             HStack(spacing: 15) {
-                LinkButton(icon: "safari", text: "Website", action: onWebsite)
-                
+                LinkButton(icon: "safari", text: "Website", action: state.openWebsite)
+
                 LinkButton(
-                    icon: "arrow.clockwise", 
-                    text: isRefreshing ? "Loading" : "Refresh ", 
-                    action: onRefresh, 
-                    isRefreshing: isRefreshing
+                    icon: "arrow.clockwise",
+                    text: state.isRefreshing ? "Loading" : "Refresh ",
+                    action: state.refresh,
+                    isRefreshing: state.isRefreshing
                 )
-                                
-                LinkButton(icon: "gear", text: "Prefs.", action: onPreferences)
-                                
-                MoreMenuButton(onAbout: onAbout, onQuit: onQuit)
+
+                LinkButton(icon: "gear", text: "Prefs.", action: state.showPreferences)
+
+                MoreMenuButton(onAbout: state.showAbout, onQuit: state.quit)
             }
             .padding()
         }
@@ -180,10 +173,13 @@ struct TrainPopoverView: View {
 
 struct TrainInfoRow: View {
     let train: TrainSchedule
-    
+
     @State private var isCopied: Bool = false
+    @State private var hasNotification: Bool = false
     @State private var refreshID: UUID = UUID()
-    
+    @State private var showNotificationError: Bool = false
+    @State private var notificationErrorMessage: String = ""
+
     var body: some View {
         Button(action: {
             copyTrainInfoToClipboard()
@@ -236,15 +232,23 @@ struct TrainInfoRow: View {
                 }
                 
                 Spacer()
-                
-                if isCopied {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                        .font(.caption)
-                } else {
-                    Image(systemName: "doc.on.doc")
-                        .foregroundStyle(.tertiary)
-                        .font(.caption)
+
+                HStack(spacing: 4) {
+                    if hasNotification {
+                        Image(systemName: "clock.fill")
+                            .foregroundColor(.blue)
+                            .font(.caption)
+                    }
+
+                    if isCopied {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.caption)
+                    } else {
+                        Image(systemName: "doc.on.doc")
+                            .foregroundStyle(.tertiary)
+                            .font(.caption)
+                    }
                 }
             }
             .contentShape(Rectangle())
@@ -252,35 +256,181 @@ struct TrainInfoRow: View {
             .padding(.vertical, 5)
         }
         .buttonStyle(PlainButtonStyle())
+        .contextMenu {
+            if hasNotification {
+                Button(action: {
+                    removeNotification()
+                }) {
+                    Label("Remove Notification", systemImage: "clock.badge.xmark")
+                }
+            } else {
+                Button(action: {
+                    scheduleNotification()
+                }) {
+                    Label("Set Notification", systemImage: "clock")
+                }
+            }
+
+            Button(action: {
+                copyTrainInfoToClipboard()
+                withAnimation { isCopied = true }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    withAnimation { isCopied = false }
+                }
+            }) {
+                Label("Copy", systemImage: "doc.on.doc")
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .trainDisplayUpdate)) { _ in
             refreshID = UUID()
         }
+        .onAppear {
+            checkForExistingNotification()
+        }
+        .alert("Notification Error", isPresented: $showNotificationError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(notificationErrorMessage)
+        }
     }
-    
+
     private func timeString(for date: Date) -> String {
         return DateFormatters.timeFormatter.string(from: date)
     }
-    
+
     private func travelTimeString() -> String {
         return DateFormatters.formatTravelTime(from: train.departureTime, to: train.arrivalTime)
     }
-    
+
     private func copyTrainInfoToClipboard() {
         let departureTime = DateFormatters.timeFormatter.string(from: train.departureTime)
         let arrivalTime = DateFormatters.timeFormatter.string(from: train.arrivalTime)
         let travelTime = DateFormatters.formatTravelTime(from: train.departureTime, to: train.arrivalTime)
-        
+
         var trainInfo = "\(departureTime) → \(arrivalTime) [\(travelTime)] (\(train.trainChanges))"
-        
+
         // Add platform numbers
         if train.trainChanges > 0 && train.allPlatforms.count > 1 {
             trainInfo += " (Pl. #\(train.allPlatforms.joined(separator: ", ")))"
         } else if !train.platform.isEmpty {
             trainInfo += " (Pl. #\(train.platform))"
         }
-        
+
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(trainInfo, forType: .string)
+    }
+
+    private func notificationIdentifier(for train: TrainSchedule) -> String {
+        return "train-\(train.trainNumber)-\(train.departureTime.timeIntervalSince1970)"
+    }
+
+    private func checkForExistingNotification() {
+        let center = UNUserNotificationCenter.current()
+        let notificationId = notificationIdentifier(for: train)
+
+        center.getPendingNotificationRequests { requests in
+            let exists = requests.contains { $0.identifier == notificationId }
+            DispatchQueue.main.async {
+                self.hasNotification = exists
+            }
+        }
+    }
+
+    private func removeNotification() {
+        let center = UNUserNotificationCenter.current()
+        let notificationId = notificationIdentifier(for: train)
+
+        center.removePendingNotificationRequests(withIdentifiers: [notificationId])
+
+        DispatchQueue.main.async {
+            withAnimation {
+                self.hasNotification = false
+            }
+        }
+    }
+
+    private func scheduleNotification() {
+        let center = UNUserNotificationCenter.current()
+
+        // Request authorization if needed
+        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            if let error = error {
+                logError("Notification authorization error: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self.notificationErrorMessage = "Failed to request notification permission: \(error.localizedDescription)"
+                    self.showNotificationError = true
+                }
+                return
+            }
+
+            guard granted else {
+                logWarning("Notification permission denied by user")
+                DispatchQueue.main.async {
+                    self.notificationErrorMessage = "Notification permission denied. Please enable notifications in System Settings > Notifications > ILrail-bar."
+                    self.showNotificationError = true
+                }
+                return
+            }
+
+            // Calculate notification time considering walking duration
+            let walkingTimeMin = PreferencesManager.shared.preferences.walkTimeDurationMin
+            let notificationTime = train.departureTime.addingTimeInterval(-Double(walkingTimeMin * 60))
+
+            // Only schedule if notification time is in the future
+            let now = Date()
+            guard notificationTime > now else {
+                logWarning("Cannot set notification: train departure time has passed")
+                DispatchQueue.main.async {
+                    self.notificationErrorMessage = "Cannot set notification for a train that has already departed or is departing too soon."
+                    self.showNotificationError = true
+                }
+                return
+            }
+
+            let content = UNMutableNotificationContent()
+            content.title = "Time to Leave!"
+
+            // Get destination station name - look up the full name from station ID
+            let toStationId = train.toStationName
+            let toStation = Station.allStations.first(where: { $0.id == toStationId })?.name ?? toStationId
+
+            // Build notification body
+            var body = "Your train to \(toStation) departs at \(timeString(for: train.departureTime))"
+            if !train.platform.isEmpty {
+                body += " from pl. \(train.platform)"
+            }
+            if walkingTimeMin > 0 {
+                body += " - start your \(walkingTimeMin) minute walk now"
+            }
+
+            content.body = body
+            content.sound = .default
+
+            // Calculate time interval from now
+            let timeInterval = notificationTime.timeIntervalSinceNow
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: timeInterval, repeats: false)
+
+            let request = UNNotificationRequest(
+                identifier: notificationIdentifier(for: train),
+                content: content,
+                trigger: trigger
+            )
+
+            center.add(request) { error in
+                DispatchQueue.main.async {
+                    if let error = error {
+                        logError("Failed to schedule notification: \(error.localizedDescription)")
+                        self.notificationErrorMessage = "Failed to schedule notification: \(error.localizedDescription)"
+                        self.showNotificationError = true
+                    } else {
+                        logInfo("Notification for train \(train.trainNumber) is set for time \(notificationTime)")
+                        withAnimation {
+                            self.hasNotification = true
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -440,42 +590,35 @@ struct LinkButtonStyle: ButtonStyle {
 
 struct TrainPopoverView_Previews: PreviewProvider {
     static var previews: some View {
-        TrainPopoverView(
-            trainSchedules: [
-                TrainSchedule(
-                    trainNumber: "123",
-                    departureTime: Date().addingTimeInterval(900), // 15 minutes from now
-                    arrivalTime: Date().addingTimeInterval(4500), // 75 minutes from now
-                    platform: "1",
-                    fromStationName: "Tel Aviv - Savidor",
-                    toStationName: "Haifa - Hof HaCarmel",
-                    trainChanges: 0,
-                    allTrainNumbers: ["123"],
-                    allPlatforms: ["1"]
-                ),
-                TrainSchedule(
-                    trainNumber: "456",
-                    departureTime: Date().addingTimeInterval(5400), // 90 minutes from now
-                    arrivalTime: Date().addingTimeInterval(9000), // 150 minutes from now
-                    platform: "2",
-                    fromStationName: "Tel Aviv - Savidor",
-                    toStationName: "Haifa - Hof HaCarmel",
-                    trainChanges: 1,
-                    allTrainNumbers: ["456", "789"],
-                    allPlatforms: ["2", "3"]
-                )
-            ],
-            fromStationName: "Tel Aviv - Savidor",
-            toStationName: "Haifa - Hof HaCarmel",
-            preferences: StationPreferences.defaultPreferences,
-            isRefreshing: false,
-            onReverseDirection: {},
-            onRefresh: {},
-            onPreferences: {},
-            onWebsite: {},
-            onAbout: {},
-            onQuit: {},
-            onSelectFavoriteRoute: { _ in }
-        )
+        let previewState = PopoverState()
+        previewState.trainSchedules = [
+            TrainSchedule(
+                trainNumber: "123",
+                departureTime: Date().addingTimeInterval(900), // 15 minutes from now
+                arrivalTime: Date().addingTimeInterval(4500), // 75 minutes from now
+                platform: "1",
+                fromStationName: "Tel Aviv - Savidor",
+                toStationName: "Haifa - Hof HaCarmel",
+                trainChanges: 0,
+                allTrainNumbers: ["123"],
+                allPlatforms: ["1"]
+            ),
+            TrainSchedule(
+                trainNumber: "456",
+                departureTime: Date().addingTimeInterval(5400), // 90 minutes from now
+                arrivalTime: Date().addingTimeInterval(9000), // 150 minutes from now
+                platform: "2",
+                fromStationName: "Tel Aviv - Savidor",
+                toStationName: "Haifa - Hof HaCarmel",
+                trainChanges: 1,
+                allTrainNumbers: ["456", "789"],
+                allPlatforms: ["2", "3"]
+            )
+        ]
+        previewState.fromStationName = "Tel Aviv - Savidor"
+        previewState.toStationName = "Haifa - Hof HaCarmel"
+        previewState.isRefreshing = false
+
+        return TrainPopoverView(state: previewState)
     }
 }

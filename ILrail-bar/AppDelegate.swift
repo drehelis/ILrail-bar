@@ -17,10 +17,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
     private var isMenuBarVisible: Bool = true
     private var hasUpdateAvailable: Bool = false
 
-    // Current train schedules and error state
-    private var currentTrainSchedules: [TrainSchedule] = []
-    private var currentErrorMessage: String?
-    private var isRefreshing: Bool = false
+    // Popover state - single source of truth
+    private var popoverState = PopoverState()
 
     private enum Constants {
         static let appVersion: String = "%%VERSION%%"
@@ -82,9 +80,37 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
         // Fetch station data as soon as the app starts
         fetchStationData()
 
+        // Setup PopoverState callbacks
+        popoverState.onRefresh = { [weak self] in
+            self?.manualRefresh()
+        }
+        popoverState.onReverseDirection = { [weak self] in
+            self?.reverseTrainDirection()
+        }
+        popoverState.onPreferences = { [weak self] in
+            self?.showPreferences()
+        }
+        popoverState.onWebsite = { [weak self] in
+            self?.openRailWebsite()
+        }
+        popoverState.onAbout = { [weak self] in
+            self?.showAbout()
+        }
+        popoverState.onQuit = {
+            NSApplication.shared.terminate(nil)
+        }
+        popoverState.onSelectFavoriteRoute = { [weak self] routeId in
+            self?.selectFavoriteRoute(routeId)
+        }
+
         popover = NSPopover()
         popover.behavior = .transient
         popover.delegate = self
+
+        // Create the popover view ONCE with state - it will update reactively
+        let popoverView = TrainPopoverView(state: popoverState)
+        popover.contentViewController = NSHostingController(rootView: popoverView)
+
         preferencesPopover = NSPopover()
         preferencesPopover.behavior = .transient
         preferencesPopover.delegate = self
@@ -169,9 +195,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             isMenuBarVisible = true
 
             // Update with the latest train info if available
-            if !currentTrainSchedules.isEmpty {
-                updateStatusBarWithTrain(currentTrainSchedules[0])
-            } else if let errorMessage = currentErrorMessage {
+            if !popoverState.trainSchedules.isEmpty {
+                updateStatusBarWithTrain(popoverState.trainSchedules[0])
+            } else if let errorMessage = popoverState.errorMessage {
                 updateStatusBarWithError(errorMessage)
             }
         } else if !isActive && isMenuBarVisible {
@@ -321,7 +347,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
 
     func showPopover() {
         if let button = statusItem.button {
-            updatePopoverContent()
+            // Update station names in state before showing
+            updateStationNames()
+
+            // Set content size to ensure proper positioning (required for macOS 15+)
+            if let hostingController = popover.contentViewController as? NSHostingController<TrainPopoverView> {
+                popover.contentSize = hostingController.view.fittingSize
+            }
+
+            // For menu bar items, use .minY to position popover below the item
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         }
     }
@@ -330,95 +364,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
         popover.performClose(nil)
     }
 
-    private func updatePopoverContent() {
-        if !currentTrainSchedules.isEmpty {
-            // Get station names
-            let preferences = PreferencesManager.shared.preferences
-            let stations = Station.allStations
+    private func updateStationNames() {
+        let preferences = PreferencesManager.shared.preferences
+        let stations = Station.allStations
 
-            // Find station names from the Station class based on preferences
-            let fromStation = stations.first(where: { $0.id == preferences.fromStation })
-            let toStation = stations.first(where: { $0.id == preferences.toStation })
+        // Find station names from the Station class based on preferences
+        let fromStation = stations.first(where: { $0.id == preferences.fromStation })
+        let toStation = stations.first(where: { $0.id == preferences.toStation })
 
-            // Use the found station names, or fall back to the IDs if not found
-            let fromStationName = fromStation?.name ?? preferences.fromStation
-            let toStationName = toStation?.name ?? preferences.toStation
-
-            // Create the train popover view
-            let trainView = TrainPopoverView(
-                trainSchedules: currentTrainSchedules,
-                fromStationName: fromStationName,
-                toStationName: toStationName,
-                preferences: preferences,
-                isRefreshing: isRefreshing,
-                onReverseDirection: { [weak self] in
-                    self?.reverseTrainDirection()
-                },
-                onRefresh: { [weak self] in
-                    self?.manualRefresh()
-                },
-                onPreferences: { [weak self] in
-                    self?.showPreferences()
-                },
-                onWebsite: { [weak self] in
-                    self?.openRailWebsite()
-                },
-                onAbout: { [weak self] in
-                    self?.showAbout()
-                },
-                onQuit: {
-                    NSApplication.shared.terminate(nil)
-                },
-                onSelectFavoriteRoute: { [weak self] routeId in
-                    self?.selectFavoriteRoute(routeId)
-                }
-            )
-
-            popover.contentViewController = NSHostingController(rootView: trainView)
-        } else if let errorMessage = currentErrorMessage {
-            // Get station names
-            let preferences = PreferencesManager.shared.preferences
-            let stations = Station.allStations
-
-            // Find station names from the Station class based on preferences
-            let fromStation = stations.first(where: { $0.id == preferences.fromStation })
-            let toStation = stations.first(where: { $0.id == preferences.toStation })
-
-            // Use the found station names, or fall back to the IDs if not found
-            let fromStationName = fromStation?.name ?? preferences.fromStation
-            let toStationName = toStation?.name ?? preferences.toStation
-
-            // Create the error popover view
-            let errorView = ErrorPopoverView(
-                errorMessage: errorMessage,
-                fromStationName: fromStationName,
-                toStationName: toStationName,
-                isRefreshing: isRefreshing,
-                onReverseDirection: { [weak self] in
-                    self?.reverseTrainDirection()
-                },
-                onRefresh: { [weak self] in
-                    self?.manualRefresh()
-                },
-                onPreferences: { [weak self] in
-                    self?.showPreferences()
-                },
-                onWebsite: { [weak self] in
-                    self?.openRailWebsite()
-                },
-                onAbout: { [weak self] in
-                    self?.showAbout()
-                },
-                onQuit: {
-                    NSApplication.shared.terminate(nil)
-                },
-                onSelectFavoriteRoute: { [weak self] routeId in
-                    self?.selectFavoriteRoute(routeId)
-                }
-            )
-
-            popover.contentViewController = NSHostingController(rootView: errorView)
-        }
+        // Update state with station names
+        popoverState.fromStationName = fromStation?.name ?? preferences.fromStation
+        popoverState.toStationName = toStation?.name ?? preferences.toStation
     }
 
     @objc func showPreferences(_ sender: Any? = nil) {
@@ -439,8 +395,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             )
 
             // Set the view in the popover
-            preferencesPopover.contentViewController = NSHostingController(
-                rootView: preferencesView)
+            let hostingController = NSHostingController(rootView: preferencesView)
+            preferencesPopover.contentViewController = hostingController
+
+            // Set content size to ensure proper positioning (required for macOS 15+)
+            preferencesPopover.contentSize = hostingController.view.fittingSize
 
             // Show the popover
             preferencesPopover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
@@ -522,51 +481,32 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
     @objc private func fetchTrainSchedule(showLoading: Bool = true) {
         // Set the refresh state if we want to show loading
         if showLoading {
-            isRefreshing = true
-
-            // Update popover content if it's visible to show the loading state
-            if popover.isShown {
-                updatePopoverContent()
-            }
+            popoverState.isRefreshing = true
+            // SwiftUI automatically updates the view - no need to manually update content!
         }
         networkManager.fetchTrainSchedule { [weak self] result in
             guard let self = self else { return }
 
             DispatchQueue.main.async {
                 // Reset refresh state
-                self.isRefreshing = false
+                self.popoverState.isRefreshing = false
 
                 switch result {
                 case .success(let trainSchedules):
                     if !trainSchedules.isEmpty {
-                        // Store train schedules
-                        self.currentTrainSchedules = trainSchedules
-                        self.currentErrorMessage = nil
+                        // Update state - SwiftUI will automatically update the view
+                        self.popoverState.trainSchedules = trainSchedules
+                        self.popoverState.errorMessage = nil
                         self.updateStatusBarWithTrain(trainSchedules[0])
-
-                        // Update popover content if it's visible
-                        if self.popover.isShown {
-                            self.updatePopoverContent()
-                        }
                     } else {
-                        self.currentTrainSchedules = []
-                        self.currentErrorMessage = Constants.noTrainFoundMessage
+                        self.popoverState.trainSchedules = []
+                        self.popoverState.errorMessage = Constants.noTrainFoundMessage
                         self.updateStatusBarWithError(Constants.noTrainFoundMessage)
-
-                        // Update popover content if it's visible
-                        if self.popover.isShown {
-                            self.updatePopoverContent()
-                        }
                     }
                 case .failure(let error):
-                    self.currentTrainSchedules = []
-                    self.currentErrorMessage = error.localizedDescription
+                    self.popoverState.trainSchedules = []
+                    self.popoverState.errorMessage = error.localizedDescription
                     self.updateStatusBarWithError(error.localizedDescription)
-
-                    // Update popover content if it's visible
-                    if self.popover.isShown {
-                        self.updatePopoverContent()
-                    }
                 }
             }
         }
@@ -576,12 +516,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
         logInfo("Refresh request by user")
 
         // Set refresh state immediately to update the UI
-        isRefreshing = true
-
-        // Update the popover UI to show loading state
-        if popover.isShown {
-            updatePopoverContent()
-        }
+        popoverState.isRefreshing = true
+        // SwiftUI automatically updates the view - no need to manually update content!
 
         // small delay allows the animation to be visible to the user
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
@@ -591,7 +527,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
 
     @objc private func updateDisplayWithoutFetching() {
         // Don't do anything if we have no train schedules or if we're outside active hours
-        guard !currentTrainSchedules.isEmpty && isMenuBarVisible else {
+        guard !popoverState.trainSchedules.isEmpty && isMenuBarVisible else {
             return
         }
 
@@ -600,7 +536,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
         let walkTimeDurationSec = TimeInterval(
             PreferencesManager.shared.preferences.walkTimeDurationMin * 60)
 
-        let upcomingTrains = currentTrainSchedules.filter {
+        let upcomingTrains = popoverState.trainSchedules.filter {
             let timeUntilDeparture = $0.departureTime.timeIntervalSince(now)
 
             if PreferencesManager.shared.preferences.walkTimeDurationMin > 0 {
@@ -610,32 +546,26 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
             }
         }
 
-        // Update the current train schedules array to only include upcoming trains
-        if upcomingTrains.count < currentTrainSchedules.count && !upcomingTrains.isEmpty {
+        // Update the train schedules array to only include upcoming trains
+        if upcomingTrains.count < popoverState.trainSchedules.count && !upcomingTrains.isEmpty {
             logInfo("Updating display without fetching new data")
-            currentTrainSchedules = upcomingTrains
+            popoverState.trainSchedules = upcomingTrains
         }
 
         if let nextTrain = upcomingTrains.first {
             // Update the menu bar with the next upcoming train
             updateStatusBarWithTrain(nextTrain)
-
-            if popover.isShown {
-                updatePopoverContent()
-            }
+            // SwiftUI automatically updates the popover view - no manual update needed!
 
             NotificationCenter.default.post(name: .trainDisplayUpdate, object: nil)
 
-        } else if upcomingTrains.isEmpty && !currentTrainSchedules.isEmpty {
+        } else if upcomingTrains.isEmpty && !popoverState.trainSchedules.isEmpty {
             // All trains have departed, show no trains message
             logInfo("Updating display without fetching new data")
-            currentTrainSchedules = []
-            currentErrorMessage = Constants.noTrainFoundMessage
+            popoverState.trainSchedules = []
+            popoverState.errorMessage = Constants.noTrainFoundMessage
             updateStatusBarWithError(Constants.noTrainFoundMessage)
-
-            if popover.isShown {
-                updatePopoverContent()
-            }
+            // SwiftUI automatically updates the popover view - no manual update needed!
         }
     }
 
@@ -816,12 +746,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSPopoverD
 
         // Apply the favorite route - this changes the current stations
         if PreferencesManager.shared.applyFavoriteRoute(id: routeId) {
+            // Update the station names in the popover state immediately
+            updateStationNames()
+
             // Trigger a refresh to show trains for the selected route
             NotificationCenter.default.post(name: .reloadPreferencesChanged, object: nil)
-
-            if popover.isShown {
-                updatePopoverContent()
-            }
+            // SwiftUI automatically updates the popover view - no manual update needed!
         }
     }
 
