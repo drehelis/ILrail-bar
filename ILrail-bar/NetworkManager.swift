@@ -10,18 +10,11 @@ class NetworkManager {
     private let originalApiKey = "5e64d66cf03f4547bcac5de2de06b566"
     private let originalApiBaseURL = "https://rail-api.rail.co.il"
     private var originalTimetableBaseURL: String {
-        return originalApiBaseURL + "/rjpa/api/v1/timetable/searchTrain"
+        return originalApiBaseURL + "/rjpa/api/v1/timetable/searchTrainForMobile"
     }
     private var originalStationsBaseURL: String {
         return originalApiBaseURL + "/common/api/v1/stations"
     }
-
-    // Proxy URLs (fallback)
-    private let proxyApiBaseURL = "https://ilrail-bar-proxy-bmt2z7lcca-zf.a.run.app"
-    private var proxyTimetableBaseURL: String {
-        return proxyApiBaseURL + "/timetable"
-    }
-    private var proxyStationsBaseURL: String { return proxyApiBaseURL + "/stations" }
 
     private let madeUpUserAgent = "ILrail-bar/1.0 macOS"
 
@@ -112,33 +105,8 @@ class NetworkManager {
 
             case .failure(let error):
                 logWarning(
-                    "Official API failed: \(error.localizedDescription). Trying proxy fallback...")
-                self?.tryProxyStationsAPI(
-                    queryItems: queryItems, officialError: error, completion: completion)
-            }
-        }
-    }
-
-    private func tryProxyStationsAPI(
-        queryItems: [URLQueryItem],
-        officialError: NetworkError,
-        completion: @escaping (Result<[RemoteStation], NetworkError>) -> Void
-    ) {
-        performSingleStationsRequest(
-            baseURL: proxyStationsBaseURL,
-            queryItems: queryItems,
-            useApiKey: false
-        ) { [weak self] fallbackResult in
-            switch fallbackResult {
-            case .success(let stations):
-                logInfo("Successfully fetched stations from proxy API (fallback)")
-                completion(.success(stations))
-
-            case .failure(let fallbackError):
-                logError(
-                    "Both APIs failed. Official: \(officialError.localizedDescription), Proxy: \(fallbackError.localizedDescription)"
-                )
-                self?.tryStationsCache(completion: completion, fallbackError: fallbackError)
+                    "Official API failed: \(error.localizedDescription). Trying cache fallback...")
+                self?.tryStationsCache(completion: completion, fallbackError: error)
             }
         }
     }
@@ -393,46 +361,12 @@ class NetworkManager {
 
             case .failure(let error):
                 logWarning(
-                    "Official API failed: \(error.localizedDescription). Trying proxy fallback...")
-                self?.tryProxyTrainScheduleAPI(
-                    queryItems: queryItems,
-                    cacheKey: cacheKey,
-                    processData: processTrainData,
-                    officialError: error,
-                    completion: completion
-                )
-            }
-        }
-    }
-
-    private func tryProxyTrainScheduleAPI(
-        queryItems: [URLQueryItem],
-        cacheKey: String,
-        processData: @escaping (Data) throws -> [TrainSchedule],
-        officialError: Error,
-        completion: @escaping (Result<[TrainSchedule], Error>) -> Void
-    ) {
-        performSingleTrainScheduleRequest(
-            baseURL: proxyTimetableBaseURL,
-            queryItems: queryItems,
-            useApiKey: false,
-            cacheKey: cacheKey,
-            processData: processData
-        ) { [weak self] fallbackResult in
-            switch fallbackResult {
-            case .success(let trains):
-                logInfo("Successfully fetched train schedule from proxy API (fallback)")
-                completion(.success(trains))
-
-            case .failure(let fallbackError):
-                logError(
-                    "Both APIs failed. Official: \(officialError.localizedDescription), Proxy: \(fallbackError.localizedDescription)"
-                )
+                    "Official API failed: \(error.localizedDescription). Trying cache fallback...")
                 self?.tryTrainScheduleCache(
                     cacheKey: cacheKey,
-                    processData: processData,
+                    processData: processTrainData,
                     completion: completion,
-                    fallbackError: fallbackError
+                    fallbackError: error
                 )
             }
         }
