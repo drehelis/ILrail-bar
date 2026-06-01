@@ -13,6 +13,12 @@ BUMP:major - Increases the major version (x.0.0)
 -->
 
 <!-- BUMP:minor -->
+## v2.12.0 - 2026-06-01
+### Changed
+- **BREAKING CHANGE**: Updated to support upstream API changes from rail service provider
+- Removed proxy fallback mechanism due to dead proxy server
+
+<!-- BUMP:minor -->
 ## v2.11.0 - 2025-12-03
 ### Added
 - Departure notifications: Set reminders for specific trains with right-click context menu

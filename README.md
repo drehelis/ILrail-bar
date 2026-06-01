@@ -71,7 +71,7 @@ To pack DMG file, use `./utils/package_dmg.sh`
 
 ## Privacy
 
-ILrail-bar accesses Israel Railways data through a proxy endpoint to ensure global accessibility and does not collect or store any personal data. All requests are made directly from your device to retrieve real-time train schedule information.
+ILrail-bar accesses Israel Railways data directly and does not collect or store any personal data. All requests are made directly from your device to retrieve real-time train schedule information.
 
 ## Feedback and Contributions
 
